@@ -1,7 +1,6 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
-import path from 'path';
-import { promises as fs } from 'fs';
+
 
 export async function POST(req) {
     try {
@@ -18,8 +17,14 @@ export async function POST(req) {
             Sep = '', Oct = '', Nov = '', Dec = ''
         } = body;
 
-        const credentialsPath = path.join(process.cwd(), 'config/credentials.json');
-        const credentials = JSON.parse(await fs.readFile(credentialsPath, 'utf8'));
+        // const credentialsPath = path.join(process.cwd(), 'config/credentials.json');
+        // const credentials = JSON.parse(await fs.readFile(credentialsPath, 'utf8'));
+        const rawCredentials = process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS;
+        if (!rawCredentials) {
+            throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_CREDENTIALS env variable');
+        }
+
+        const credentials = JSON.parse(rawCredentials);
 
         const auth = new google.auth.GoogleAuth({
             credentials,
