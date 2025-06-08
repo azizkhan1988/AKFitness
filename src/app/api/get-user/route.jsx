@@ -1,0 +1,43 @@
+import { google } from 'googleapis';
+import { NextResponse } from 'next/server';
+import path from 'path';
+import { promises as fs } from 'fs';
+
+export async function GET(req) {
+    try {
+        const url = new URL(req.url);
+        const idParam = url.searchParams.get('id');
+
+        const credentialsPath = path.join(process.cwd(), 'config/credentials.json');
+        const credentials = JSON.parse(await fs.readFile(credentialsPath, 'utf8'));
+
+        const auth = new google.auth.GoogleAuth({
+            credentials,
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+
+        const sheets = google.sheets({ version: 'v4', auth });
+        const spreadsheetId = '1UvC5d_PJjNdClaDWiOa96O4IO2xGRFQCd72xtK-a2X0';
+        const range = 'Sheet1!A2:R';
+
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range,
+        });
+
+        const rows = response.data.values || [];
+        const headers = ['id', 'name', 'phone', 'joiningDate', 'admissionFee', 'image', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        const userRow = rows.find(row => row[0] === idParam);
+
+        if (!userRow) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        const user = Object.fromEntries(headers.map((key, i) => [key, userRow[i] || '']));
+        return NextResponse.json(user);
+    } catch (err) {
+        console.error(err);
+        return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
+    }
+}
