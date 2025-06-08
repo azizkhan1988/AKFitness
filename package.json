@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--openssl-legacy-provider next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -19,8 +19,5 @@
     "react-bootstrap": "^2.10.10",
     "react-hot-toast": "^2.5.2",
     "sass": "^1.82.0"
-  },
-  "devDependencies": {
-    "cross-env": "^7.0.3"
   }
 }
