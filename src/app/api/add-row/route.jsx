@@ -19,12 +19,11 @@ export async function POST(req) {
 
         // const credentialsPath = path.join(process.cwd(), 'config/credentials.json');
         // const credentials = JSON.parse(await fs.readFile(credentialsPath, 'utf8'));
-        const rawCredentials = process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS;
-        if (!rawCredentials) {
-            throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_CREDENTIALS env variable');
-        }
+        const credentials = {
+      client_email: process.env.GOOGLE_CLIENT_EMAIL,
+      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    };
 
-        const credentials = JSON.parse(rawCredentials);
 
         const auth = new google.auth.GoogleAuth({
             credentials,
