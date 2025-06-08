@@ -8,13 +8,13 @@ export async function GET(req) {
         const url = new URL(req.url);
         const idParam = url.searchParams.get('id');
 
-        const credentialsPath = path.join(process.cwd(), 'config/credentials.json');
-        const credentials = JSON.parse(await fs.readFile(credentialsPath, 'utf8'));
-
-        const auth = new google.auth.GoogleAuth({
-            credentials,
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
+       const auth = new google.auth.GoogleAuth({
+            credentials: {
+              client_email: process.env.GOOGLE_CLIENT_EMAIL,
+              private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+            },
+            scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+          });
 
         const sheets = google.sheets({ version: 'v4', auth });
         const spreadsheetId = '1UvC5d_PJjNdClaDWiOa96O4IO2xGRFQCd72xtK-a2X0';
