@@ -121,6 +121,7 @@ export default function ImageUploader() {
                                 fill
                                 src={`${uploadResult.url}?t=${Date.now()}`}
                                 alt="Uploaded"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             />
                         ) : (
                             <>
