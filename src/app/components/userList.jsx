@@ -41,24 +41,21 @@ export default function MoreDetail() {
   if (error) return <p>Error: {error}</p>;
   if (!user) return <p>No user found</p>;
 
-  const formattedJoiningDate = user.joiningDate
-    ? (() => {
-        const d = new Date(user.joiningDate);
-        if (isNaN(d)) return "Invalid date";
-        const day = String(d.getDate()).padStart(2, "0");
-        const month = months[d.getMonth()];
-        const year = d.getFullYear();
-        return `${day}-${month}-${year}`;
-      })()
-    : "No joining date";
-
   const joiningDate = new Date(user.joiningDate);
   const today = new Date();
-  const joiningMonthIndex = joiningDate.getMonth();
-  const currentMonthIndex = today.getMonth();
+  const isValidJoiningDate = !isNaN(joiningDate);
 
-  let monthsDueCount = (today.getFullYear() - joiningDate.getFullYear()) * 12 + (today.getMonth() - joiningDate.getMonth());
-  if (today.getDate() >= joiningDate.getDate()) monthsDueCount += 1;
+  const formattedJoiningDate = isValidJoiningDate
+    ? `${String(joiningDate.getDate()).padStart(2, "0")}-${months[joiningDate.getMonth()]}-${joiningDate.getFullYear()}`
+    : "No joining date";
+
+  const joiningMonthIndex = isValidJoiningDate ? joiningDate.getMonth() : 0;
+  const currentMonthIndex = today.getMonth();
+  let monthsDueCount = isValidJoiningDate
+    ? (today.getFullYear() - joiningDate.getFullYear()) * 12 + (today.getMonth() - joiningDate.getMonth())
+    : 0;
+
+  if (isValidJoiningDate && today.getDate() >= joiningDate.getDate()) monthsDueCount += 1;
 
   let paidCount = 0;
   let dueMarked = false;
@@ -103,7 +100,6 @@ export default function MoreDetail() {
     }
 
     const updateMonthIndex = months.indexOf(updateMonth);
-
     const isFutureMonth =
       today.getFullYear() === joiningDate.getFullYear()
         ? updateMonthIndex > currentMonthIndex ||
@@ -131,14 +127,13 @@ export default function MoreDetail() {
 
     if (newFee === 0) {
       try {
-        const response = await fetch("/api/update-user", {
+        const res = await fetch("/api/update-user", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, month: updateMonth, fee: "Absent" }),
         });
 
-        if (!response.ok) throw new Error("Failed to mark Absent");
-
+        if (!res.ok) throw new Error("Failed to mark Absent");
         toast.success(`✅ Marked ${updateMonth} as Absent`);
         setUpdateFee("");
         setUpdateMonth("");
@@ -157,20 +152,19 @@ export default function MoreDetail() {
     }
 
     const total = existingFee + newFee;
-
     if (total > 1000) {
-      toast.error(`❌ Total exceeds ₹1000 (Already Paid: ₹${existingFee})`);
+      toast.error(`❌ Total exceeds Rs.1000 (Already Paid: Rs.${existingFee})`);
       return;
     }
 
     try {
-      const response = await fetch("/api/update-user", {
+      const res = await fetch("/api/update-user", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, month: updateMonth, fee: total }),
       });
 
-      if (!response.ok) throw new Error("Failed to update fee");
+      if (!res.ok) throw new Error("Failed to update fee");
 
       toast.success("✅ Fee updated successfully!");
       setUpdateFee("");
@@ -183,6 +177,18 @@ export default function MoreDetail() {
     }
   };
 
+  const formatPhoneNumber = (phone) => {
+    if (!phone) return "No phone number";
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length === 10 && digits.startsWith("3")) {
+      return `+92-${digits.slice(0, 3)}-${digits.slice(3)}`;
+    }
+    if (digits.length === 12 && digits.startsWith("92")) {
+      return `+${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+    }
+    return phone;
+  };
+
   return (
     <div className="userDetails">
       <h2>User Details</h2>
@@ -191,9 +197,9 @@ export default function MoreDetail() {
         <div className="userListItem">
           <div className="userName"><strong>ID:</strong> {user.id}</div>
           <div className="userName text-capitalize"><strong>Name:</strong> {user.name}</div>
-          <div className="userName"><strong>Phone:</strong> {user.phone ? `+92-${user.phone}` : "No phone number"}</div>
+          <div className="userName"><strong>Phone:</strong> {formatPhoneNumber(user.phone)}</div>
           <div className="userName"><strong>Joining Date:</strong> {formattedJoiningDate}</div>
-          <div className="userName"><strong>Admission Fee:</strong> {user.admissionFee}</div>
+          <div className="userName"><strong>Admission Fee:</strong> Rs.{user.admissionFee}</div>
           <div className="userName">
             <strong>Total Months Paid:</strong> {paidCount} / {monthsDueCount} ({absentCount} Absent)
           </div>
@@ -236,7 +242,7 @@ export default function MoreDetail() {
                 <input
                   type="number"
                   name="fee"
-                  placeholder="Fee Amount (₹)"
+                  placeholder="Fee Amount (Rs.)"
                   value={updateFee}
                   onChange={(e) => setUpdateFee(e.target.value)}
                   required
