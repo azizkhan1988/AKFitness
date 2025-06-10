@@ -27,7 +27,6 @@ export default function UserShow() {
     fetchData();
   }, []);
 
-  // Phone formatter
   function formatPhoneNumber(phone) {
     const digits = phone.replace(/\D/g, "");
     if (digits.length === 10 && digits.startsWith("3")) {
@@ -39,7 +38,6 @@ export default function UserShow() {
     return phone;
   }
 
-  // Calculate remaining fee helper
   const calculateRemainingFee = (user) => {
     const {
       admissionFee = 0,
@@ -58,48 +56,112 @@ export default function UserShow() {
       Dec = "",
     } = user;
 
-    const paidMonths = [
-      Jan,
-      Feb,
-      Mar,
-      Apr,
-      May,
-      Jun,
-      Jul,
-      Aug,
-      Sep,
-      Oct,
-      Nov,
-      Dec,
-    ].map((fee) => parseInt(fee, 10) || 0);
+    const monthsMap = {
+      0: Jan,
+      1: Feb,
+      2: Mar,
+      3: Apr,
+      4: May,
+      5: Jun,
+      6: Jul,
+      7: Aug,
+      8: Sep,
+      9: Oct,
+      10: Nov,
+      11: Dec,
+    };
 
+    const paidMonths = Object.values(monthsMap).map((fee) => parseInt(fee, 10) || 0);
     const monthlyPaid = paidMonths.reduce((sum, fee) => sum + fee, 0);
     const totalPaid = Number(admissionFee) + monthlyPaid;
 
     let remainingFee = 0;
+
     if (joiningDate) {
       const join = new Date(joiningDate);
+      const now = new Date();
+
       if (!isNaN(join)) {
-        const now = new Date();
-        const monthsDue =
-          (now.getFullYear() - join.getFullYear()) * 12 +
-          (now.getMonth() - join.getMonth() + 1);
-        const totalDue = 500 + monthsDue * 1000;
+        let totalDue = 500;
+
+        const joinYear = join.getFullYear();
+        const joinMonth = join.getMonth();
+        const nowYear = now.getFullYear();
+        const nowMonth = now.getMonth();
+
+        let monthsDue =
+          nowYear * 12 + nowMonth - (joinYear * 12 + joinMonth) + 1;
+        if (monthsDue < 0) monthsDue = 0;
+
+        let absentCount = 0;
+        for (let i = 0; i < monthsDue; i++) {
+          const monthIndex = (joinMonth + i) % 12;
+          const value = monthsMap[monthIndex];
+          if (value === "Absent") absentCount++;
+        }
+
+        totalDue += (monthsDue - absentCount) * 1000;
         remainingFee = totalDue - totalPaid;
       }
     }
+
     return remainingFee;
   };
 
-  // Filter and search
+  const getAbsentCount = (user) => {
+    const {
+      joiningDate,
+      Jan = "",
+      Feb = "",
+      Mar = "",
+      Apr = "",
+      May = "",
+      Jun = "",
+      Jul = "",
+      Aug = "",
+      Sep = "",
+      Oct = "",
+      Nov = "",
+      Dec = "",
+    } = user;
+
+    const monthsMap = {
+      0: Jan,
+      1: Feb,
+      2: Mar,
+      3: Apr,
+      4: May,
+      5: Jun,
+      6: Jul,
+      7: Aug,
+      8: Sep,
+      9: Oct,
+      10: Nov,
+      11: Dec,
+    };
+
+    if (!joiningDate) return 0;
+    const join = new Date(joiningDate);
+    const now = new Date();
+    const joinYear = join.getFullYear();
+    const joinMonth = join.getMonth();
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth();
+    let monthsDue = nowYear * 12 + nowMonth - (joinYear * 12 + joinMonth) + 1;
+
+    let absentCount = 0;
+    for (let i = 0; i < monthsDue; i++) {
+      const monthIndex = (joinMonth + i) % 12;
+      if (monthsMap[monthIndex] === "Absent") absentCount++;
+    }
+    return absentCount;
+  };
+
   const filteredData = data.filter((user) => {
     const remaining = calculateRemainingFee(user);
-
-    // Filter by paid/due/all
     if (filter === "paid" && remaining > 0) return false;
     if (filter === "due" && remaining <= 0) return false;
 
-    // Search filter on id or name (case insensitive)
     if (search) {
       const searchLower = search.toLowerCase();
       const idString = String(user.id || "").toLowerCase();
@@ -174,24 +236,16 @@ export default function UserShow() {
               } = user;
 
               const remainingFee = calculateRemainingFee(user);
+              const absentCount = getAbsentCount(user);
+
               const formattedJoiningDate = joiningDate
                 ? (() => {
                     const d = new Date(joiningDate);
                     if (isNaN(d)) return "";
                     const day = String(d.getDate()).padStart(2, "0");
                     const monthNames = [
-                      "Jan",
-                      "Feb",
-                      "Mar",
-                      "Apr",
-                      "May",
-                      "Jun",
-                      "Jul",
-                      "Aug",
-                      "Sep",
-                      "Oct",
-                      "Nov",
-                      "Dec",
+                      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
                     ];
                     const month = monthNames[d.getMonth()];
                     const year = d.getFullYear();
@@ -204,18 +258,15 @@ export default function UserShow() {
                   <td>{id}</td>
                   <td>{name}</td>
                   <td>
-                    {phone ? (
-                      formatPhoneNumber(phone)
-                    ) : (
-                      <em>No phone number</em>
-                    )}
+                    {phone ? formatPhoneNumber(phone) : <em>No phone number</em>}
                   </td>
                   <td>{formattedJoiningDate}</td>
                   <td>
-                    <div
-                      className={remainingFee > 0 ? "redColor" : "greenColor"}
-                    >
+                    <div className={remainingFee > 0 ? "redColor" : "greenColor"}>
                       {remainingFee}
+                      {absentCount > 0 && (
+                        <span> ({absentCount} Absent)</span>
+                      )}
                     </div>
                   </td>
                   <td>

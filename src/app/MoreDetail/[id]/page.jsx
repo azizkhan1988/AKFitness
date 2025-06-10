@@ -9,7 +9,6 @@ const Page = () => {
                 <Row>
                     <Col md={12}>
                         <UserList />
-
                     </Col>
                 </Row>
             </Container>

@@ -37,12 +37,7 @@ export default function MoreDetail() {
     if (id) fetchUser();
   }, [id]);
 
-  if (loading)
-    return (
-      <div className="LoadingIcon">
-        <LoadingIcon />
-      </div>
-    );
+  if (loading) return <div className="LoadingIcon"><LoadingIcon /></div>;
   if (error) return <p>Error: {error}</p>;
   if (!user) return <p>No user found</p>;
 
@@ -51,11 +46,7 @@ export default function MoreDetail() {
         const d = new Date(user.joiningDate);
         if (isNaN(d)) return "Invalid date";
         const day = String(d.getDate()).padStart(2, "0");
-        const monthNames = [
-          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-        ];
-        const month = monthNames[d.getMonth()];
+        const month = months[d.getMonth()];
         const year = d.getFullYear();
         return `${day}-${month}-${year}`;
       })()
@@ -66,29 +57,32 @@ export default function MoreDetail() {
   const joiningMonthIndex = joiningDate.getMonth();
   const currentMonthIndex = today.getMonth();
 
-  let monthsDueCount =
-    (today.getFullYear() - joiningDate.getFullYear()) * 12 +
-    (today.getMonth() - joiningDate.getMonth());
+  let monthsDueCount = (today.getFullYear() - joiningDate.getFullYear()) * 12 + (today.getMonth() - joiningDate.getMonth());
   if (today.getDate() >= joiningDate.getDate()) monthsDueCount += 1;
 
   let paidCount = 0;
   let dueMarked = false;
+
+  const absentCount = months.reduce((count, month, index) => {
+    if (index >= joiningMonthIndex && index <= currentMonthIndex) {
+      if (user[month] === "Absent") return count + 1;
+    }
+    return count;
+  }, 0);
+
   const renderedMonths = months.map((month, index) => {
-    if (
-      index < joiningMonthIndex ||
-      index >= joiningMonthIndex + monthsDueCount
-    )
-      return "-";
+    if (index < joiningMonthIndex || index >= joiningMonthIndex + monthsDueCount) return "-";
 
-    const value = user[month];
+    const rawValue = user[month];
+    if (rawValue === "Absent") return "Absent";
 
-    if (value && !isNaN(value)) {
-      const feeNum = Number(value);
-      if (feeNum >= 1000) {
+    const value = Number(rawValue);
+    if (!isNaN(value)) {
+      if (value >= 1000) {
         paidCount++;
         return "Paid";
-      } else if (feeNum > 0) {
-        return `${1000 - feeNum} Due`;
+      } else if (value > 0) {
+        return `${1000 - value} Due`;
       }
     }
 
@@ -104,34 +98,62 @@ export default function MoreDetail() {
     e.preventDefault();
 
     if (!months.includes(updateMonth)) {
-      toast.error("❌ Invalid month. Use first 3 letters of month (e.g. Jan, Feb)");
+      toast.error("❌ Invalid month. Use first 3 letters (e.g. Jan)");
       return;
     }
 
     const updateMonthIndex = months.indexOf(updateMonth);
 
     if (updateMonthIndex > currentMonthIndex) {
-      toast.error("❌ Cannot pay for a future month");
+      toast.error("❌ Cannot update future month");
       return;
     }
 
     if (updateMonthIndex < joiningMonthIndex) {
-      toast.error(`❌ Cannot pay for months before joining (${months[joiningMonthIndex]})`);
+      toast.error(`❌ Cannot update before joining (${months[joiningMonthIndex]})`);
       return;
     }
 
     const newFee = Number(updateFee);
-    if (isNaN(newFee) || newFee <= 0) {
-      toast.error("❌ Enter a valid amount greater than 0");
+    if (isNaN(newFee) || newFee < 0) {
+      toast.error("❌ Invalid fee amount");
       return;
     }
 
     const existing = user[updateMonth];
     const existingFee = existing && !isNaN(existing) ? Number(existing) : 0;
+
+    if (newFee === 0) {
+      try {
+        const response = await fetch("/api/update-user", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, month: updateMonth, fee: "Absent" }),
+        });
+
+        if (!response.ok) throw new Error("Failed to mark Absent");
+
+        toast.success(`✅ Marked ${updateMonth} as Absent`);
+        setUpdateFee("");
+        setUpdateMonth("");
+        setShowUpdateForm(false);
+        fetchUser();
+      } catch (err) {
+        console.error(err);
+        toast.error("❌ Error marking Absent");
+      }
+      return;
+    }
+
+    if (newFee < 100 || newFee > 1000) {
+      toast.error("❌ Fee must be between 100 and 1000");
+      return;
+    }
+
     const total = existingFee + newFee;
 
     if (total > 1000) {
-      toast.error(`❌ Total fee for ${updateMonth} exceeds ₹1000 (Already Paid: ₹${existingFee})`);
+      toast.error(`❌ Total exceeds ₹1000 (Already Paid: ₹${existingFee})`);
       return;
     }
 
@@ -163,17 +185,11 @@ export default function MoreDetail() {
         <div className="userListItem">
           <div className="userName"><strong>ID:</strong> {user.id}</div>
           <div className="userName text-capitalize"><strong>Name:</strong> {user.name}</div>
+          <div className="userName"><strong>Phone:</strong> {user.phone ? `+92-${user.phone}` : "No phone number"}</div>
+          <div className="userName"><strong>Joining Date:</strong> {formattedJoiningDate}</div>
+          <div className="userName"><strong>Admission Fee:</strong> {user.admissionFee}</div>
           <div className="userName">
-            <strong>Phone:</strong> {user.phone ? `+92-${user.phone}` : "No phone number"}
-          </div>
-          <div className="userName">
-            <strong>Joining Date:</strong> {formattedJoiningDate}
-          </div>
-          <div className="userName">
-            <strong>Admission Fee:</strong> {user.admissionFee}
-          </div>
-          <div className="userName">
-            <strong>Total Months Paid:</strong> {paidCount} / {monthsDueCount}
+            <strong>Total Months Paid:</strong> {paidCount} / {monthsDueCount} ({absentCount} Absent)
           </div>
         </div>
       </div>
@@ -191,30 +207,29 @@ export default function MoreDetail() {
                   value={updateMonth}
                   onChange={(e) => setUpdateMonth(e.target.value)}
                   required
-                  className="p-2 border rounded w-1/2"
                 >
                   <option value="">Select Month</option>
                   {months.map((month, idx) =>
-                    idx >= joiningMonthIndex && idx <= currentMonthIndex ? (
-                      <option key={month} value={month}>{month}</option>
-                    ) : null
+                    idx >= joiningMonthIndex &&
+                    idx <= currentMonthIndex &&
+                    user[month] !== "Absent" &&
+                    (isNaN(user[month]) || Number(user[month]) < 1000)
+                      ? <option key={month} value={month}>{month}</option>
+                      : null
                   )}
                 </select>
                 <input
                   type="number"
                   name="fee"
-                  placeholder="Fee Amount"
+                  placeholder="Fee Amount (₹)"
                   value={updateFee}
                   onChange={(e) => setUpdateFee(e.target.value)}
                   required
-                  className="p-2 border rounded w-1/2"
                 />
               </div>
               <div className="flexBtn">
                 <button type="submit">Submit Fee</button>
-                <button type="button" onClick={() => setShowUpdateForm(false)}>
-                  Cancel Fee
-                </button>
+                <button type="button" onClick={() => setShowUpdateForm(false)}>Cancel Fee</button>
               </div>
             </form>
           ) : (
@@ -239,8 +254,9 @@ export default function MoreDetail() {
               {renderedMonths.map((val, index) => {
                 const cleanVal = val.trim().toLowerCase();
                 let cellClass = "";
-                if (cleanVal.includes("due")) cellClass = "redColor";
-                else if (cleanVal === "paid") cellClass = "greenColor";
+                if (cleanVal === "paid") cellClass = "greenColor";
+                else if (cleanVal.includes("due")) cellClass = "redColor";
+                else if (cleanVal === "absent") cellClass = "YellowColor";
                 return (
                   <td key={months[index]}>
                     <div className={cellClass}>{val}</div>
