@@ -104,7 +104,13 @@ export default function MoreDetail() {
 
     const updateMonthIndex = months.indexOf(updateMonth);
 
-    if (updateMonthIndex > currentMonthIndex) {
+    const isFutureMonth =
+      today.getFullYear() === joiningDate.getFullYear()
+        ? updateMonthIndex > currentMonthIndex ||
+          (updateMonthIndex === currentMonthIndex && today.getDate() < joiningDate.getDate())
+        : updateMonthIndex > currentMonthIndex;
+
+    if (isFutureMonth) {
       toast.error("❌ Cannot update future month");
       return;
     }
@@ -209,14 +215,23 @@ export default function MoreDetail() {
                   required
                 >
                   <option value="">Select Month</option>
-                  {months.map((month, idx) =>
-                    idx >= joiningMonthIndex &&
-                    idx <= currentMonthIndex &&
-                    user[month] !== "Absent" &&
-                    (isNaN(user[month]) || Number(user[month]) < 1000)
-                      ? <option key={month} value={month}>{month}</option>
-                      : null
-                  )}
+                  {months.map((month, idx) => {
+                    const isFutureMonth =
+                      today.getFullYear() === joiningDate.getFullYear()
+                        ? idx > currentMonthIndex ||
+                          (idx === currentMonthIndex && today.getDate() < joiningDate.getDate())
+                        : idx > currentMonthIndex;
+
+                    if (
+                      idx >= joiningMonthIndex &&
+                      !isFutureMonth &&
+                      user[month] !== "Absent" &&
+                      (isNaN(user[month]) || Number(user[month]) < 1000)
+                    ) {
+                      return <option key={month} value={month}>{month}</option>;
+                    }
+                    return null;
+                  })}
                 </select>
                 <input
                   type="number"
