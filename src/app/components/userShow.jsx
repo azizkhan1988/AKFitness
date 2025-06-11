@@ -38,127 +38,59 @@ export default function UserShow() {
     return phone;
   }
 
+  // Updated fee calculation with absent logic
   const calculateRemainingFee = (user) => {
     const {
       admissionFee = 0,
       joiningDate,
-      Jan = "",
-      Feb = "",
-      Mar = "",
-      Apr = "",
-      May = "",
-      Jun = "",
-      Jul = "",
-      Aug = "",
-      Sep = "",
-      Oct = "",
-      Nov = "",
-      Dec = "",
+      Jan = "", Feb = "", Mar = "", Apr = "",
+      May = "", Jun = "", Jul = "", Aug = "",
+      Sep = "", Oct = "", Nov = "", Dec = "",
     } = user;
 
-    const monthsMap = {
-      0: Jan,
-      1: Feb,
-      2: Mar,
-      3: Apr,
-      4: May,
-      5: Jun,
-      6: Jul,
-      7: Aug,
-      8: Sep,
-      9: Oct,
-      10: Nov,
-      11: Dec,
-    };
+    const monthlyFields = [
+      Jan, Feb, Mar, Apr, May, Jun,
+      Jul, Aug, Sep, Oct, Nov, Dec,
+    ];
 
-    const paidMonths = Object.values(monthsMap).map((fee) => parseInt(fee, 10) || 0);
+    const paidMonths = monthlyFields.map((fee) => parseInt(fee, 10) || 0);
+    const absentCount = monthlyFields.filter(
+      (val) =>
+        typeof val === "string" &&
+        val.trim().toLowerCase() === "absent"
+    ).length;
+
     const monthlyPaid = paidMonths.reduce((sum, fee) => sum + fee, 0);
     const totalPaid = Number(admissionFee) + monthlyPaid;
 
-    let remainingFee = 0;
+    if (!joiningDate) return { remaining: 0, absentCount: 0 };
 
-    if (joiningDate) {
-      const join = new Date(joiningDate);
-      const now = new Date();
-
-      if (!isNaN(join)) {
-        let totalDue = 500;
-
-        const joinYear = join.getFullYear();
-        const joinMonth = join.getMonth();
-        const nowYear = now.getFullYear();
-        const nowMonth = now.getMonth();
-
-        let monthsDue =
-          nowYear * 12 + nowMonth - (joinYear * 12 + joinMonth) + 1;
-        if (monthsDue < 0) monthsDue = 0;
-
-        let absentCount = 0;
-        for (let i = 0; i < monthsDue; i++) {
-          const monthIndex = (joinMonth + i) % 12;
-          const value = monthsMap[monthIndex];
-          if (value === "Absent") absentCount++;
-        }
-
-        totalDue += (monthsDue - absentCount) * 1000;
-        remainingFee = totalDue - totalPaid;
-      }
-    }
-
-    return remainingFee;
-  };
-
-  const getAbsentCount = (user) => {
-    const {
-      joiningDate,
-      Jan = "",
-      Feb = "",
-      Mar = "",
-      Apr = "",
-      May = "",
-      Jun = "",
-      Jul = "",
-      Aug = "",
-      Sep = "",
-      Oct = "",
-      Nov = "",
-      Dec = "",
-    } = user;
-
-    const monthsMap = {
-      0: Jan,
-      1: Feb,
-      2: Mar,
-      3: Apr,
-      4: May,
-      5: Jun,
-      6: Jul,
-      7: Aug,
-      8: Sep,
-      9: Oct,
-      10: Nov,
-      11: Dec,
-    };
-
-    if (!joiningDate) return 0;
     const join = new Date(joiningDate);
-    const now = new Date();
-    const joinYear = join.getFullYear();
-    const joinMonth = join.getMonth();
-    const nowYear = now.getFullYear();
-    const nowMonth = now.getMonth();
-    let monthsDue = nowYear * 12 + nowMonth - (joinYear * 12 + joinMonth) + 1;
+    if (isNaN(join)) return { remaining: 0, absentCount: 0 };
 
-    let absentCount = 0;
-    for (let i = 0; i < monthsDue; i++) {
-      const monthIndex = (joinMonth + i) % 12;
-      if (monthsMap[monthIndex] === "Absent") absentCount++;
+    const now = new Date();
+    let dueMonths = 0;
+    let nextDue = new Date(join);
+    nextDue.setMonth(nextDue.getMonth() + 1); // fee due starts next month
+
+    while (nextDue <= now) {
+      dueMonths++;
+      nextDue.setMonth(nextDue.getMonth() + 1);
     }
-    return absentCount;
+
+    const baseDue = 500 + (dueMonths + 1) * 1000; // 500 admission + advance month
+    const adjustedDue = baseDue - absentCount * 1000;
+    const remainingFee = adjustedDue - totalPaid;
+
+    return {
+      remaining: remainingFee > 0 ? remainingFee : 0,
+      absentCount,
+    };
   };
 
   const filteredData = data.filter((user) => {
-    const remaining = calculateRemainingFee(user);
+    const { remaining } = calculateRemainingFee(user);
+
     if (filter === "paid" && remaining > 0) return false;
     if (filter === "due" && remaining <= 0) return false;
 
@@ -235,8 +167,7 @@ export default function UserShow() {
                 joiningDate = "",
               } = user;
 
-              const remainingFee = calculateRemainingFee(user);
-              const absentCount = getAbsentCount(user);
+              const { remaining, absentCount } = calculateRemainingFee(user);
 
               const formattedJoiningDate = joiningDate
                 ? (() => {
@@ -262,10 +193,12 @@ export default function UserShow() {
                   </td>
                   <td>{formattedJoiningDate}</td>
                   <td>
-                    <div className={remainingFee > 0 ? "redColor" : "greenColor"}>
-                      {remainingFee}
+                    <div className={remaining > 0 ? "redColor" : "greenColor"}>
+                      Rs. {remaining}
                       {absentCount > 0 && (
-                        <span> ({absentCount} Absent)</span>
+                        <em>
+                         ({absentCount} Absent)
+                        </em>
                       )}
                     </div>
                   </td>
