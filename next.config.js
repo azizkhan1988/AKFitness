@@ -13,16 +13,12 @@ const nextConfig = {
     },
     {
       protocol: "https",
-      hostname: "your-vercel-app.vercel.app", // your Vercel domain
+      hostname: "ak-fitness-omega.vercel.app", // your Vercel domain
     },
     {
       protocol: "http",
       hostname: "localhost", // local dev
-    },
-    {
-      protocol: "https",
-      hostname: "placehold.co", // ✅ allow placeholder images
-    },
+    }
   ],
 },
 
