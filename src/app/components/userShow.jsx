@@ -98,7 +98,8 @@ export default function UserShow() {
       const searchLower = search.toLowerCase();
       const idString = String(user.id || "").toLowerCase();
       const nameLower = (user.name || "").toLowerCase();
-      return idString.includes(searchLower) || nameLower.includes(searchLower);
+       const phoneLower = (user.phone || "").toLowerCase();
+      return idString.includes(searchLower) || nameLower.includes(searchLower) || phoneLower.includes(searchLower);
     }
 
     return true;
