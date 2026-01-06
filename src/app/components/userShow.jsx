@@ -38,58 +38,56 @@ export default function UserShow() {
     return phone;
   }
 
-  // Fee calculation with 2026 reset for 2025 joiners
-const calculateRemainingFee = (user) => {
-  const {
-    admissionFee = 0,
-    joiningDate,
-    Jan = "", Feb = "", Mar = "", Apr = "",
-    May = "", Jun = "", Jul = "", Aug = "",
-    Sep = "", Oct = "", Nov = "", Dec = "",
-  } = user;
+  // Updated fee calculation to match MoreDetail logic
+  const calculateRemainingFee = (user) => {
+    const {
+      admissionFee = 0,
+      joiningDate,
+      Jan = "", Feb = "", Mar = "", Apr = "",
+      May = "", Jun = "", Jul = "", Aug = "",
+      Sep = "", Oct = "", Nov = "", Dec = "",
+    } = user;
 
-  const monthlyFields = { Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec };
-  const join = joiningDate ? new Date(joiningDate) : null;
-  const joinYear = join ? join.getFullYear() : null;
-  const now = new Date();
-  const currentYear = now.getFullYear();
+    const monthlyFields = { Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec };
+    const join = joiningDate ? new Date(joiningDate) : null;
+    const joinYear = join ? join.getFullYear() : null;
+    const now = new Date();
+    const currentYear = now.getFullYear();
 
-  let monthlyPaid = 0;
-  let absentCount = 0;
-  let dueMonths = 0;
+    let monthlyPaid = 0;
+    let absentCount = 0;
+    let dueMonths = 0;
 
-  Object.entries(monthlyFields).forEach(([month, value], idx) => {
-    const monthYear = joinYear === 2025 ? 2026 : (joinYear || currentYear);
-    const monthDate = new Date(`1 ${month} ${monthYear}`);
+    Object.entries(monthlyFields).forEach(([month, value]) => {
+      const monthYear = joinYear === 2025 ? 2026 : (joinYear || currentYear);
+      const monthDate = new Date(`1 ${month} ${monthYear}`);
 
-    if (monthDate > now) return; // ignore future months
+      if (monthDate > now) return; // future months ignore
 
-    if (typeof value === "string" && value.trim().toLowerCase() === "absent") {
-      absentCount++;
-    } else {
-      const paid = Number(value) || 0;
-      monthlyPaid += paid;
-      if (paid < 1000) dueMonths++; // month not fully paid
-    }
-  });
+      if (typeof value === "string" && value.trim().toLowerCase() === "absent") {
+        absentCount++;
+        dueMonths++; // Absent counts as due month
+      } else {
+        const paid = Number(value) || 0;
+        monthlyPaid += paid;
+        if (paid < 1000) dueMonths++; // partially paid month counts as due
+      }
+    });
 
-  // Admission fee due
-  let admissionDue = 500 - (Number(admissionFee) || 0);
-  if (admissionDue < 0) admissionDue = 0;
+    // Admission fee due
+    let admissionDue = 500 - (Number(admissionFee) || 0);
+    if (admissionDue < 0) admissionDue = 0;
 
-  // Remaining monthly due
-  const monthlyDue = dueMonths * 1000;
+    // Remaining fee = admissionDue + due months * 1000
+    const remainingFee = admissionDue + dueMonths * 1000;
 
-  const remainingFee = admissionDue + monthlyDue;
-
-  return {
-    remaining: remainingFee > 0 ? remainingFee : 0,
-    absentCount,
-    dueMonths,
-    admissionDue,
+    return {
+      remaining: remainingFee > 0 ? remainingFee : 0,
+      absentCount,
+      dueMonths,
+      admissionDue,
+    };
   };
-};
-
 
   // Filtered and searched data
   const filteredData = data.filter((user) => {
@@ -183,6 +181,11 @@ const calculateRemainingFee = (user) => {
                   })()
                 : "";
 
+              // Decide cell color: Absent → Yellow, Due → Red, Fully Paid → Green
+              let cellClass = "greenColor";
+              if (absentCount > 0) cellClass = "YellowColor";
+              else if (remaining > 0) cellClass = "redColor";
+
               return (
                 <tr key={id}>
                   <td>{id}</td>
@@ -190,8 +193,8 @@ const calculateRemainingFee = (user) => {
                   <td>{phone ? formatPhoneNumber(phone) : <em>No phone number</em>}</td>
                   <td>{formattedJoiningDate}</td>
                   <td>
-                    <div className={remaining > 0 ? "redColor" : "greenColor"}>
-                      Rs. {remaining}
+                    <div className={cellClass}>
+                      Rs. {remaining > 0 ? remaining : 0}
                       {absentCount > 0 && <em> ({absentCount} Absent)</em>}
                     </div>
                   </td>
