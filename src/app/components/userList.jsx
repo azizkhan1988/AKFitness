@@ -49,28 +49,39 @@ export default function MoreDetail() {
     ? `${String(joiningDate.getDate()).padStart(2, "0")}-${months[joiningDate.getMonth()]}-${joiningDate.getFullYear()}`
     : "No joining date";
 
-  const joiningMonthIndex = isValidJoiningDate ? joiningDate.getMonth() : 0;
-  const currentMonthIndex = today.getMonth();
-  let monthsDueCount = isValidJoiningDate
-    ? (today.getFullYear() - joiningDate.getFullYear()) * 12 + (today.getMonth() - joiningDate.getMonth())
-    : 0;
+  const joinYear = joiningDate.getFullYear();
+  const startYear = joinYear === 2025 ? 2026 : joinYear;
+  const currentYear = today.getFullYear();
 
-  if (isValidJoiningDate && today.getDate() >= joiningDate.getDate()) monthsDueCount += 1;
-
-  let paidCount = 0;
-  let dueMarked = false;
-
-  const absentCount = months.reduce((count, month, index) => {
-    if (index >= joiningMonthIndex && index <= currentMonthIndex) {
-      if (user[month] === "Absent") return count + 1;
+  // Months due calculation
+  let monthsDueCount = 0;
+  if (isValidJoiningDate) {
+    if (startYear === currentYear) {
+      monthsDueCount = today.getMonth() + 1; // Jan to current month
+    } else if (startYear < currentYear) {
+      monthsDueCount = 12; // full year
+    } else {
+      monthsDueCount = 0;
     }
+  }
+
+  // Paid and absent counts
+  let paidCount = 0;
+  const absentCount = months.reduce((count, month, index) => {
+    const raw = user[month];
+    if (raw === "Absent") return count + 1;
     return count;
   }, 0);
 
+  // Rendered months for table
   const renderedMonths = months.map((month, index) => {
-    if (index < joiningMonthIndex || index >= joiningMonthIndex + monthsDueCount) return "-";
-
     const rawValue = user[month];
+
+    // Only consider 2026 months for 2025 joiners
+    const monthYear = joinYear === 2025 ? 2026 : startYear;
+    const monthDate = new Date(`1 ${month} ${monthYear}`);
+
+    if (monthDate > today) return "-"; // future month
     if (rawValue === "Absent") return "Absent";
 
     const value = Number(rawValue);
@@ -78,17 +89,15 @@ export default function MoreDetail() {
       if (value >= 1000) {
         paidCount++;
         return "Paid";
-      } else if (value > 0) {
+      } else if (value > 0 && value < 1000) {
         return `${1000 - value} Due`;
       }
     }
 
-    if (!dueMarked && paidCount < monthsDueCount) {
-      dueMarked = true;
-      return "Due";
-    }
+    // If month is due but no fee entered yet
+    if (monthDate <= today) return "Due";
 
-    return "Due";
+    return "-";
   });
 
   const handleFeeUpdate = async (e) => {
@@ -100,19 +109,21 @@ export default function MoreDetail() {
     }
 
     const updateMonthIndex = months.indexOf(updateMonth);
-    const isFutureMonth =
-      today.getFullYear() === joiningDate.getFullYear()
-        ? updateMonthIndex > currentMonthIndex ||
-          (updateMonthIndex === currentMonthIndex && today.getDate() < joiningDate.getDate())
-        : updateMonthIndex > currentMonthIndex;
+    const currentMonthIndex = today.getMonth();
+
+    const monthYear = joinYear === 2025 ? 2026 : startYear;
+    const monthDate = new Date(`1 ${updateMonth} ${monthYear}`);
+    const isFutureMonth = monthDate > today;
+
+    const joinMonthIndex = joiningDate.getMonth();
 
     if (isFutureMonth) {
       toast.error("❌ Cannot update future month");
       return;
     }
 
-    if (updateMonthIndex < joiningMonthIndex) {
-      toast.error(`❌ Cannot update before joining (${months[joiningMonthIndex]})`);
+    if (monthYear === joinYear && updateMonthIndex < joinMonthIndex) {
+      toast.error(`❌ Cannot update before joining (${months[joinMonthIndex]})`);
       return;
     }
 
@@ -221,19 +232,14 @@ export default function MoreDetail() {
                   required
                 >
                   <option value="">Select Month</option>
-                  {months.map((month, idx) => {
-                    const isFutureMonth =
-                      today.getFullYear() === joiningDate.getFullYear()
-                        ? idx > currentMonthIndex ||
-                          (idx === currentMonthIndex && today.getDate() < joiningDate.getDate())
-                        : idx > currentMonthIndex;
+                  {months.map((month) => {
+                    const rawValue = user[month];
+                    const monthYear = joinYear === 2025 ? 2026 : startYear;
+                    const monthDate = new Date(`1 ${month} ${monthYear}`);
+                    const isFutureMonth = monthDate > today;
+                    const isPaidOrAbsent = rawValue === "Absent" || Number(rawValue) >= 1000;
 
-                    if (
-                      idx >= joiningMonthIndex &&
-                      !isFutureMonth &&
-                      user[month] !== "Absent" &&
-                      (isNaN(user[month]) || Number(user[month]) < 1000)
-                    ) {
+                    if (!isFutureMonth && !isPaidOrAbsent) {
                       return <option key={month} value={month}>{month}</option>;
                     }
                     return null;

@@ -1,6 +1,6 @@
 // project/src/app/api/get-rows/route.jsx
 import { google } from "googleapis";
-import { NextResponse } from "next/server";
+
 
 export async function GET() {
   try {

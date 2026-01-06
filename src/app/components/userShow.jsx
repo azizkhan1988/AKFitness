@@ -38,56 +38,60 @@ export default function UserShow() {
     return phone;
   }
 
-  // Updated fee calculation with absent logic
-  const calculateRemainingFee = (user) => {
-    const {
-      admissionFee = 0,
-      joiningDate,
-      Jan = "", Feb = "", Mar = "", Apr = "",
-      May = "", Jun = "", Jul = "", Aug = "",
-      Sep = "", Oct = "", Nov = "", Dec = "",
-    } = user;
+  // Fee calculation with 2026 reset for 2025 joiners
+const calculateRemainingFee = (user) => {
+  const {
+    admissionFee = 0,
+    joiningDate,
+    Jan = "", Feb = "", Mar = "", Apr = "",
+    May = "", Jun = "", Jul = "", Aug = "",
+    Sep = "", Oct = "", Nov = "", Dec = "",
+  } = user;
 
-    const monthlyFields = [
-      Jan, Feb, Mar, Apr, May, Jun,
-      Jul, Aug, Sep, Oct, Nov, Dec,
-    ];
+  const monthlyFields = { Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec };
+  const join = joiningDate ? new Date(joiningDate) : null;
+  const joinYear = join ? join.getFullYear() : null;
+  const now = new Date();
+  const currentYear = now.getFullYear();
 
-    const paidMonths = monthlyFields.map((fee) => parseInt(fee, 10) || 0);
-    const absentCount = monthlyFields.filter(
-      (val) =>
-        typeof val === "string" &&
-        val.trim().toLowerCase() === "absent"
-    ).length;
+  let monthlyPaid = 0;
+  let absentCount = 0;
+  let dueMonths = 0;
 
-    const monthlyPaid = paidMonths.reduce((sum, fee) => sum + fee, 0);
-    const totalPaid = Number(admissionFee) + monthlyPaid;
+  Object.entries(monthlyFields).forEach(([month, value], idx) => {
+    const monthYear = joinYear === 2025 ? 2026 : (joinYear || currentYear);
+    const monthDate = new Date(`1 ${month} ${monthYear}`);
 
-    if (!joiningDate) return { remaining: 0, absentCount: 0 };
+    if (monthDate > now) return; // ignore future months
 
-    const join = new Date(joiningDate);
-    if (isNaN(join)) return { remaining: 0, absentCount: 0 };
-
-    const now = new Date();
-    let dueMonths = 0;
-    let nextDue = new Date(join);
-    nextDue.setMonth(nextDue.getMonth() + 1); // fee due starts next month
-
-    while (nextDue <= now) {
-      dueMonths++;
-      nextDue.setMonth(nextDue.getMonth() + 1);
+    if (typeof value === "string" && value.trim().toLowerCase() === "absent") {
+      absentCount++;
+    } else {
+      const paid = Number(value) || 0;
+      monthlyPaid += paid;
+      if (paid < 1000) dueMonths++; // month not fully paid
     }
+  });
 
-    const baseDue = 500 + (dueMonths + 1) * 1000; // 500 admission + advance month
-    const adjustedDue = baseDue - absentCount * 1000;
-    const remainingFee = adjustedDue - totalPaid;
+  // Admission fee due
+  let admissionDue = 500 - (Number(admissionFee) || 0);
+  if (admissionDue < 0) admissionDue = 0;
 
-    return {
-      remaining: remainingFee > 0 ? remainingFee : 0,
-      absentCount,
-    };
+  // Remaining monthly due
+  const monthlyDue = dueMonths * 1000;
+
+  const remainingFee = admissionDue + monthlyDue;
+
+  return {
+    remaining: remainingFee > 0 ? remainingFee : 0,
+    absentCount,
+    dueMonths,
+    admissionDue,
   };
+};
 
+
+  // Filtered and searched data
   const filteredData = data.filter((user) => {
     const { remaining } = calculateRemainingFee(user);
 
@@ -98,7 +102,7 @@ export default function UserShow() {
       const searchLower = search.toLowerCase();
       const idString = String(user.id || "").toLowerCase();
       const nameLower = (user.name || "").toLowerCase();
-       const phoneLower = (user.phone || "").toLowerCase();
+      const phoneLower = (user.phone || "").toLowerCase();
       return idString.includes(searchLower) || nameLower.includes(searchLower) || phoneLower.includes(searchLower);
     }
 
@@ -161,13 +165,7 @@ export default function UserShow() {
           </thead>
           <tbody>
             {filteredData.map((user, index) => {
-              const {
-                id = index + 1,
-                name = "",
-                phone = "",
-                joiningDate = "",
-              } = user;
-
+              const { id = index + 1, name = "", phone = "", joiningDate = "" } = user;
               const { remaining, absentCount } = calculateRemainingFee(user);
 
               const formattedJoiningDate = joiningDate
@@ -189,18 +187,12 @@ export default function UserShow() {
                 <tr key={id}>
                   <td>{id}</td>
                   <td>{name}</td>
-                  <td>
-                    {phone ? formatPhoneNumber(phone) : <em>No phone number</em>}
-                  </td>
+                  <td>{phone ? formatPhoneNumber(phone) : <em>No phone number</em>}</td>
                   <td>{formattedJoiningDate}</td>
                   <td>
                     <div className={remaining > 0 ? "redColor" : "greenColor"}>
                       Rs. {remaining}
-                      {absentCount > 0 && (
-                        <em>
-                         ({absentCount} Absent)
-                        </em>
-                      )}
+                      {absentCount > 0 && <em> ({absentCount} Absent)</em>}
                     </div>
                   </td>
                   <td>
