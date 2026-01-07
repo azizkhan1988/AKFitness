@@ -38,7 +38,7 @@ export default function UserShow() {
     return phone;
   }
 
-  // Updated fee calculation to match MoreDetail logic
+  // Fee calculation with 2026 reset for 2025 joiners
   const calculateRemainingFee = (user) => {
     const {
       admissionFee = 0,
@@ -56,36 +56,53 @@ export default function UserShow() {
 
     let monthlyPaid = 0;
     let absentCount = 0;
-    let dueMonths = 0;
 
+    // Loop over months
     Object.entries(monthlyFields).forEach(([month, value]) => {
-      const monthYear = joinYear === 2025 ? 2026 : (joinYear || currentYear);
-      const monthDate = new Date(`1 ${month} ${monthYear}`);
-
-      if (monthDate > now) return; // future months ignore
-
-      if (typeof value === "string" && value.trim().toLowerCase() === "absent") {
-        absentCount++;
-        dueMonths++; // Absent counts as due month
+      // Only consider 2026 months for 2025 joiners
+      if (joinYear === 2025 && currentYear === 2026) {
+        if (typeof value === "string" && value.trim().toLowerCase() === "absent") {
+          absentCount++;
+        } else {
+          monthlyPaid += parseInt(value, 10) || 0;
+        }
       } else {
-        const paid = Number(value) || 0;
-        monthlyPaid += paid;
-        if (paid < 1000) dueMonths++; // partially paid month counts as due
+        if (typeof value === "string" && value.trim().toLowerCase() === "absent") {
+          absentCount++;
+        } else {
+          monthlyPaid += parseInt(value, 10) || 0;
+        }
       }
     });
 
-    // Admission fee due
-    let admissionDue = 500 - (Number(admissionFee) || 0);
-    if (admissionDue < 0) admissionDue = 0;
+    const totalPaid = Number(admissionFee) + monthlyPaid;
 
-    // Remaining fee = admissionDue + due months * 1000
-    const remainingFee = admissionDue + dueMonths * 1000;
+    if (!join) return { remaining: 0, absentCount: 0 };
+
+    // Calculate due months
+    let dueMonths = 0;
+    if (joinYear === 2025) {
+      let nextDue = new Date(`Jan 1, 2026`);
+      while (nextDue <= now) {
+        dueMonths++;
+        nextDue.setMonth(nextDue.getMonth() + 1);
+      }
+    } else {
+      let nextDue = new Date(join);
+      nextDue.setMonth(nextDue.getMonth() + 1);
+      while (nextDue <= now) {
+        dueMonths++;
+        nextDue.setMonth(nextDue.getMonth() + 1);
+      }
+    }
+
+    const baseDue = 500 + dueMonths * 1000; // 500 admission + monthly fee
+    const adjustedDue = baseDue - absentCount * 1000;
+    const remainingFee = adjustedDue - totalPaid;
 
     return {
       remaining: remainingFee > 0 ? remainingFee : 0,
       absentCount,
-      dueMonths,
-      admissionDue,
     };
   };
 
@@ -181,11 +198,6 @@ export default function UserShow() {
                   })()
                 : "";
 
-              // Decide cell color: Absent → Yellow, Due → Red, Fully Paid → Green
-              let cellClass = "greenColor";
-              if (absentCount > 0) cellClass = "YellowColor";
-              else if (remaining > 0) cellClass = "redColor";
-
               return (
                 <tr key={id}>
                   <td>{id}</td>
@@ -193,8 +205,8 @@ export default function UserShow() {
                   <td>{phone ? formatPhoneNumber(phone) : <em>No phone number</em>}</td>
                   <td>{formattedJoiningDate}</td>
                   <td>
-                    <div className={cellClass}>
-                      Rs. {remaining > 0 ? remaining : 0}
+                    <div className={remaining > 0 ? "redColor" : "greenColor"}>
+                      Rs. {remaining}
                       {absentCount > 0 && <em> ({absentCount} Absent)</em>}
                     </div>
                   </td>
