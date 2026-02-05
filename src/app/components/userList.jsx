@@ -15,8 +15,18 @@ export default function MoreDetail() {
   const [updateFee, setUpdateFee] = useState("");
 
   const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
 
   const fetchUser = async () => {
@@ -37,7 +47,12 @@ export default function MoreDetail() {
     if (id) fetchUser();
   }, [id]);
 
-  if (loading) return <div className="LoadingIcon"><LoadingIcon /></div>;
+  if (loading)
+    return (
+      <div className="LoadingIcon">
+        <LoadingIcon />
+      </div>
+    );
   if (error) return <p>Error: {error}</p>;
   if (!user) return <p>No user found</p>;
 
@@ -50,41 +65,53 @@ export default function MoreDetail() {
     : "No joining date";
 
   // --- Monthly Fee Calculation for 2026 only ---
-  let renderedMonths = [];
-  let paidCount = 0;
-  let absentCount = 0;
+  // --- Monthly Fee Calculation for 2026 only ---
+let renderedMonths = [];
+let paidCount = 0;
+let absentCount = 0;
 
-  months.forEach((month, index) => {
-    // Show only 2026 months
-    if (joiningDate.getFullYear() <= 2026) {
-      const rawValue = user[month];
+months.forEach((month, index) => {
+  // Only 2026 months
+  if (2026 === 2026) { // hard-coded 2026
+    const monthValue = user[month];
 
-      if (rawValue === undefined || rawValue === null || rawValue === "") {
-        // Month not available
-        renderedMonths.push("-");
-      } else if (rawValue === "Absent") {
-        renderedMonths.push("Absent");
-        absentCount++;
-      } else {
-        const value = Number(rawValue);
-        if (!isNaN(value)) {
-          if (value >= 1000) {
-            renderedMonths.push("Paid");
-            paidCount++;
-          } else if (value > 0) {
-            renderedMonths.push(`${1000 - value} Due`);
-          } else {
-            renderedMonths.push("Due");
-          }
-        } else {
-          renderedMonths.push("-");
-        }
-      }
-    } else {
-      // Skip months beyond 2026
-      renderedMonths.push("-");
+    // Check if month is before joining date
+    if (joiningDate.getFullYear() === 2026 && index < joiningDate.getMonth()) {
+      renderedMonths.push("-"); // month not started
+      return;
     }
-  });
+
+    // Check if month is after today
+    if (index > today.getMonth() && today.getFullYear() === 2026) {
+      renderedMonths.push("-"); // future month
+      return;
+    }
+
+    // Month exists
+    if (monthValue === "Absent") {
+      renderedMonths.push("Absent");
+      absentCount++;
+    } else if (!monthValue || Number(monthValue) === 0) {
+      renderedMonths.push("Due");
+    } else {
+      const value = Number(monthValue);
+      if (!isNaN(value)) {
+        if (value >= 1000) {
+          renderedMonths.push("Paid");
+          paidCount++;
+        } else if (value > 0) {
+          renderedMonths.push(`${1000 - value} Due`);
+        } else {
+          renderedMonths.push("Due");
+        }
+      } else {
+        renderedMonths.push("-");
+      }
+    }
+  } else {
+    renderedMonths.push("-");
+  }
+});
 
   const handleFeeUpdate = async (e) => {
     e.preventDefault();
@@ -97,7 +124,8 @@ export default function MoreDetail() {
     const updateMonthIndex = months.indexOf(updateMonth);
     const isFutureMonth =
       updateMonthIndex > today.getMonth() ||
-      (updateMonthIndex === today.getMonth() && today.getDate() < joiningDate.getDate());
+      (updateMonthIndex === today.getMonth() &&
+        today.getDate() < joiningDate.getDate());
 
     if (isFutureMonth) {
       toast.error("❌ Cannot update future month");
@@ -181,13 +209,24 @@ export default function MoreDetail() {
       <div className="userInfo">
         <ImageUploader />
         <div className="userListItem">
-          <div className="userName"><strong>ID:</strong> {user.id}</div>
-          <div className="userName text-capitalize"><strong>Name:</strong> {user.name}</div>
-          <div className="userName"><strong>Phone:</strong> {formatPhoneNumber(user.phone)}</div>
-          <div className="userName"><strong>Joining Date:</strong> {formattedJoiningDate}</div>
-          <div className="userName"><strong>Admission Fee:</strong> Rs.{user.admissionFee}</div>
           <div className="userName">
-            <strong>Total Months Paid (2026):</strong> {paidCount} / {months.length} ({absentCount} Absent)
+            <strong>ID:</strong> {user.id}
+          </div>
+          <div className="userName text-capitalize">
+            <strong>Name:</strong> {user.name}
+          </div>
+          <div className="userName">
+            <strong>Phone:</strong> {formatPhoneNumber(user.phone)}
+          </div>
+          <div className="userName">
+            <strong>Joining Date:</strong> {formattedJoiningDate}
+          </div>
+          <div className="userName">
+            <strong>Admission Fee:</strong> Rs.{user.admissionFee}
+          </div>
+          <div className="userName">
+            <strong>Total Months Paid (2026):</strong> {paidCount} /{" "}
+            {months.length} ({absentCount} Absent)
           </div>
         </div>
       </div>
@@ -208,13 +247,40 @@ export default function MoreDetail() {
                 >
                   <option value="">Select Month</option>
                   {months.map((month, idx) => {
-                    const val = user[month];
-                    if (val === undefined || val === null || val === "" || Number(val) < 1000) {
-                      return <option key={month} value={month}>{month}</option>;
+                    const joiningYear = joiningDate.getFullYear();
+                    const joiningMonth = joiningDate.getMonth();
+                    const currentYear = today.getFullYear();
+                    const currentMonth = today.getMonth();
+
+                    const monthValue = user[month];
+                    const isPaid = Number(monthValue) >= 1000;
+                    const isAbsent = monthValue === "Absent";
+
+                    // Only months in 2026
+                    if (2026 === 2026) {
+                      // hard-coded 2026, could use dynamic if needed
+                      // Month should be after joining month if joining year is 2026
+                      if (joiningYear === 2026 && idx < joiningMonth)
+                        return null;
+
+                      // Month should not be future month beyond today
+                      if (idx > currentMonth && currentYear === 2026)
+                        return null;
+
+                      // Month must not be fully paid or Absent
+                      if (!isPaid && !isAbsent) {
+                        return (
+                          <option key={month} value={month}>
+                            {month}
+                          </option>
+                        );
+                      }
                     }
+
                     return null;
                   })}
                 </select>
+
                 <input
                   type="number"
                   name="fee"
@@ -226,7 +292,9 @@ export default function MoreDetail() {
               </div>
               <div className="flexBtn">
                 <button type="submit">Submit Fee</button>
-                <button type="button" onClick={() => setShowUpdateForm(false)}>Cancel Fee</button>
+                <button type="button" onClick={() => setShowUpdateForm(false)}>
+                  Cancel Fee
+                </button>
               </div>
             </form>
           ) : (
@@ -242,7 +310,7 @@ export default function MoreDetail() {
           <thead>
             <tr align="center">
               {months.map((month) => (
-                <th key={month}>{month}-2026</th>
+                <th key={month}>{month}</th>
               ))}
             </tr>
           </thead>

@@ -3,7 +3,7 @@ import Zkteco from "zkteco-js";
 export async function POST(req) {
   const { userId } = await req.json();
 
-  const device = new Zkteco("192.168.0.104", 4370, 10000, 4000);
+  const device = new Zkteco("192.168.0.102", 4370, 10000, 4000);
 
   try {
     await device.createSocket();
