@@ -5,7 +5,7 @@ export default function ZktecoAttendance() {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch attendance
+  // Fetch attendance summary from backend
   const fetchAttendance = async () => {
     setLoading(true);
     try {
@@ -15,8 +15,8 @@ export default function ZktecoAttendance() {
       if (data.success && Array.isArray(data.attendance)) {
         setAttendance(data.attendance);
       } else {
-        console.error("Invalid attendance data:", data);
         setAttendance([]);
+        console.error("Invalid attendance data:", data);
       }
     } catch (err) {
       console.error("Failed to fetch attendance:", err);
@@ -26,28 +26,32 @@ export default function ZktecoAttendance() {
     }
   };
 
+  // Auto-refresh attendance every X seconds (e.g., 5s)
   useEffect(() => {
-    fetchAttendance();
+    fetchAttendance(); 
   }, []);
 
-  // Delete user
-  const deleteUser = async userId => {
-    if (!confirm(`Fee completed? Disable fingerprint for user ${userId}?`)) return;
+  // Delete a user and refresh table from device
+const deleteUser = async (userId) => {
+  if (!confirm(`Fee completed? Disable fingerprint for user ${userId}?`))
+    return;
 
-    try {
-      const res = await fetch("/api/zkteco/delete-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      const data = await res.json();
-      alert(data.message || "Done");
-      fetchAttendance(); // refresh table
-    } catch (err) {
-      console.error(err);
-      alert("Failed to disable user");
-    }
-  };
+  try {
+    const res = await fetch("/api/zkteco/delete-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+
+    const data = await res.json();
+    alert(data.message || "Done");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to disable user");
+  }
+};
+
 
   if (loading) return <p className="p-4">Loading attendance...</p>;
 
@@ -68,7 +72,7 @@ export default function ZktecoAttendance() {
             </tr>
           </thead>
           <tbody>
-            {attendance.map(user => (
+            {attendance.map((user) => (
               <tr key={user.userId}>
                 <td className="border px-2 py-1">{user.userId}</td>
                 <td className="border px-2 py-1">{user.name}</td>
@@ -81,6 +85,7 @@ export default function ZktecoAttendance() {
                     Delete
                   </button>
                 </td>
+                
               </tr>
             ))}
           </tbody>

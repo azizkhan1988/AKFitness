@@ -38,75 +38,67 @@ export default function UserShow() {
     return phone;
   }
 
-  // Fee calculation with 2026 reset for 2025 joiners
-  const calculateRemainingFee = (user) => {
-    const {
-      admissionFee = 0,
-      joiningDate,
-      Jan = "", Feb = "", Mar = "", Apr = "",
-      May = "", Jun = "", Jul = "", Aug = "",
-      Sep = "", Oct = "", Nov = "", Dec = "",
-    } = user;
+  // Updated fee calculation with absent logic
+const calculateRemainingFee = (user) => {
+  const {
+    admissionFee = 0,
+    joiningDate,
+    Jan = "", Feb = "", Mar = "", Apr = "",
+    May = "", Jun = "", Jul = "", Aug = "",
+    Sep = "", Oct = "", Nov = "", Dec = "",
+  } = user;
 
-    const monthlyFields = { Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec };
-    const join = joiningDate ? new Date(joiningDate) : null;
-    const joinYear = join ? join.getFullYear() : null;
-    const now = new Date();
-    const currentYear = now.getFullYear();
+  const monthlyFields = [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec];
+  const monthlyFee = 1000;
 
-    let monthlyPaid = 0;
-    let absentCount = 0;
+  // Count absent months
+  const absentCount = monthlyFields.filter(
+    (val) => typeof val === "string" && val.trim().toLowerCase() === "absent"
+  ).length;
 
-    // Loop over months
-    Object.entries(monthlyFields).forEach(([month, value]) => {
-      // Only consider 2026 months for 2025 joiners
-      if (joinYear === 2025 && currentYear === 2026) {
-        if (typeof value === "string" && value.trim().toLowerCase() === "absent") {
-          absentCount++;
-        } else {
-          monthlyPaid += parseInt(value, 10) || 0;
-        }
-      } else {
-        if (typeof value === "string" && value.trim().toLowerCase() === "absent") {
-          absentCount++;
-        } else {
-          monthlyPaid += parseInt(value, 10) || 0;
-        }
-      }
-    });
+  // Count paid months
+  const paidMonths = monthlyFields.map((fee) => parseInt(fee, 10) || 0);
+  const totalPaidMonths = paidMonths.reduce((sum, fee) => sum + fee, 0);
 
-    const totalPaid = Number(admissionFee) + monthlyPaid;
+  const totalPaid = Number(admissionFee) + totalPaidMonths;
 
-    if (!join) return { remaining: 0, absentCount: 0 };
+  if (!joiningDate) return { remaining: 0, absentCount: 0 };
 
-    // Calculate due months
-    let dueMonths = 0;
-    if (joinYear === 2025) {
-      let nextDue = new Date(`Jan 1, 2026`);
-      while (nextDue <= now) {
-        dueMonths++;
-        nextDue.setMonth(nextDue.getMonth() + 1);
-      }
-    } else {
-      let nextDue = new Date(join);
-      nextDue.setMonth(nextDue.getMonth() + 1);
-      while (nextDue <= now) {
-        dueMonths++;
-        nextDue.setMonth(nextDue.getMonth() + 1);
-      }
-    }
+  const join = new Date(joiningDate);
+  if (isNaN(join)) return { remaining: 0, absentCount: 0 };
 
-    const baseDue = 500 + dueMonths * 1000; // 500 admission + monthly fee
-    const adjustedDue = baseDue - absentCount * 1000;
-    const remainingFee = adjustedDue - totalPaid;
+  const now = new Date();
 
-    return {
-      remaining: remainingFee > 0 ? remainingFee : 0,
-      absentCount,
-    };
+  // --- 2025 ke months automatically paid --- //
+  let paid2025Months = 0;
+  if (join.getFullYear() === 2025) {
+    paid2025Months = 12 - join.getMonth(); // joining month se Dec 2025
+  }
+
+  // --- 2026 onwards calculation --- //
+  let dueMonths2026 = 0;
+  const start2026 = new Date(Math.max(join.getTime(), new Date(2026, 0, join.getDate()))); // start from joining date or Jan 2026
+  let nextDue = new Date(start2026);
+
+  while (nextDue <= now) {
+    dueMonths2026++;
+    nextDue.setMonth(nextDue.getMonth() + 1);
+  }
+
+  // Total due = admission fee + 2025 months + 2026 months
+  const totalDue = Number(admissionFee) + dueMonths2026 * monthlyFee;
+
+  // Subtract already paid + absent months (for 2026)
+  const adjustedDue = totalDue - totalPaid - absentCount * monthlyFee;
+
+  return {
+    remaining: adjustedDue > 0 ? adjustedDue : 0,
+    absentCount,
   };
+};
 
-  // Filtered and searched data
+
+
   const filteredData = data.filter((user) => {
     const { remaining } = calculateRemainingFee(user);
 
@@ -117,7 +109,7 @@ export default function UserShow() {
       const searchLower = search.toLowerCase();
       const idString = String(user.id || "").toLowerCase();
       const nameLower = (user.name || "").toLowerCase();
-      const phoneLower = (user.phone || "").toLowerCase();
+       const phoneLower = (user.phone || "").toLowerCase();
       return idString.includes(searchLower) || nameLower.includes(searchLower) || phoneLower.includes(searchLower);
     }
 
@@ -180,7 +172,13 @@ export default function UserShow() {
           </thead>
           <tbody>
             {filteredData.map((user, index) => {
-              const { id = index + 1, name = "", phone = "", joiningDate = "" } = user;
+              const {
+                id = index + 1,
+                name = "",
+                phone = "",
+                joiningDate = "",
+              } = user;
+
               const { remaining, absentCount } = calculateRemainingFee(user);
 
               const formattedJoiningDate = joiningDate
@@ -202,12 +200,18 @@ export default function UserShow() {
                 <tr key={id}>
                   <td>{id}</td>
                   <td>{name}</td>
-                  <td>{phone ? formatPhoneNumber(phone) : <em>No phone number</em>}</td>
+                  <td>
+                    {phone ? formatPhoneNumber(phone) : <em>No phone number</em>}
+                  </td>
                   <td>{formattedJoiningDate}</td>
                   <td>
                     <div className={remaining > 0 ? "redColor" : "greenColor"}>
                       Rs. {remaining}
-                      {absentCount > 0 && <em> ({absentCount} Absent)</em>}
+                      {absentCount > 0 && (
+                        <em>
+                         ({absentCount} Absent)
+                        </em>
+                      )}
                     </div>
                   </td>
                   <td>

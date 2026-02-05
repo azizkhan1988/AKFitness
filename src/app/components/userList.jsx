@@ -49,55 +49,41 @@ export default function MoreDetail() {
     ? `${String(joiningDate.getDate()).padStart(2, "0")}-${months[joiningDate.getMonth()]}-${joiningDate.getFullYear()}`
     : "No joining date";
 
-  const joinYear = joiningDate.getFullYear();
-  const startYear = joinYear === 2025 ? 2026 : joinYear;
-  const currentYear = today.getFullYear();
-
-  // Months due calculation
-  let monthsDueCount = 0;
-  if (isValidJoiningDate) {
-    if (startYear === currentYear) {
-      monthsDueCount = today.getMonth() + 1; // Jan to current month
-    } else if (startYear < currentYear) {
-      monthsDueCount = 12; // full year
-    } else {
-      monthsDueCount = 0;
-    }
-  }
-
-  // Paid and absent counts
+  // --- Monthly Fee Calculation for 2026 only ---
+  let renderedMonths = [];
   let paidCount = 0;
-  const absentCount = months.reduce((count, month, index) => {
-    const raw = user[month];
-    if (raw === "Absent") return count + 1;
-    return count;
-  }, 0);
+  let absentCount = 0;
 
-  // Rendered months for table
-  const renderedMonths = months.map((month, index) => {
-    const rawValue = user[month];
+  months.forEach((month, index) => {
+    // Show only 2026 months
+    if (joiningDate.getFullYear() <= 2026) {
+      const rawValue = user[month];
 
-    // Only consider 2026 months for 2025 joiners
-    const monthYear = joinYear === 2025 ? 2026 : startYear;
-    const monthDate = new Date(`1 ${month} ${monthYear}`);
-
-    if (monthDate > today) return "-"; // future month
-    if (rawValue === "Absent") return "Absent";
-
-    const value = Number(rawValue);
-    if (!isNaN(value)) {
-      if (value >= 1000) {
-        paidCount++;
-        return "Paid";
-      } else if (value > 0 && value < 1000) {
-        return `${1000 - value} Due`;
+      if (rawValue === undefined || rawValue === null || rawValue === "") {
+        // Month not available
+        renderedMonths.push("-");
+      } else if (rawValue === "Absent") {
+        renderedMonths.push("Absent");
+        absentCount++;
+      } else {
+        const value = Number(rawValue);
+        if (!isNaN(value)) {
+          if (value >= 1000) {
+            renderedMonths.push("Paid");
+            paidCount++;
+          } else if (value > 0) {
+            renderedMonths.push(`${1000 - value} Due`);
+          } else {
+            renderedMonths.push("Due");
+          }
+        } else {
+          renderedMonths.push("-");
+        }
       }
+    } else {
+      // Skip months beyond 2026
+      renderedMonths.push("-");
     }
-
-    // If month is due but no fee entered yet
-    if (monthDate <= today) return "Due";
-
-    return "-";
   });
 
   const handleFeeUpdate = async (e) => {
@@ -109,21 +95,12 @@ export default function MoreDetail() {
     }
 
     const updateMonthIndex = months.indexOf(updateMonth);
-    const currentMonthIndex = today.getMonth();
-
-    const monthYear = joinYear === 2025 ? 2026 : startYear;
-    const monthDate = new Date(`1 ${updateMonth} ${monthYear}`);
-    const isFutureMonth = monthDate > today;
-
-    const joinMonthIndex = joiningDate.getMonth();
+    const isFutureMonth =
+      updateMonthIndex > today.getMonth() ||
+      (updateMonthIndex === today.getMonth() && today.getDate() < joiningDate.getDate());
 
     if (isFutureMonth) {
       toast.error("❌ Cannot update future month");
-      return;
-    }
-
-    if (monthYear === joinYear && updateMonthIndex < joinMonthIndex) {
-      toast.error(`❌ Cannot update before joining (${months[joinMonthIndex]})`);
       return;
     }
 
@@ -143,7 +120,6 @@ export default function MoreDetail() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, month: updateMonth, fee: "Absent" }),
         });
-
         if (!res.ok) throw new Error("Failed to mark Absent");
         toast.success(`✅ Marked ${updateMonth} as Absent`);
         setUpdateFee("");
@@ -174,7 +150,6 @@ export default function MoreDetail() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, month: updateMonth, fee: total }),
       });
-
       if (!res.ok) throw new Error("Failed to update fee");
 
       toast.success("✅ Fee updated successfully!");
@@ -212,14 +187,14 @@ export default function MoreDetail() {
           <div className="userName"><strong>Joining Date:</strong> {formattedJoiningDate}</div>
           <div className="userName"><strong>Admission Fee:</strong> Rs.{user.admissionFee}</div>
           <div className="userName">
-            <strong>Total Months Paid:</strong> {paidCount} / {monthsDueCount} ({absentCount} Absent)
+            <strong>Total Months Paid (2026):</strong> {paidCount} / {months.length} ({absentCount} Absent)
           </div>
         </div>
       </div>
 
       <div className="headingSec">
         <div className="headingBox">
-          <h2>Monthly Fee Status</h2>
+          <h2>Monthly Fee Status (2026)</h2>
         </div>
         <div className="userFeeUpdate">
           {showUpdateForm ? (
@@ -232,14 +207,9 @@ export default function MoreDetail() {
                   required
                 >
                   <option value="">Select Month</option>
-                  {months.map((month) => {
-                    const rawValue = user[month];
-                    const monthYear = joinYear === 2025 ? 2026 : startYear;
-                    const monthDate = new Date(`1 ${month} ${monthYear}`);
-                    const isFutureMonth = monthDate > today;
-                    const isPaidOrAbsent = rawValue === "Absent" || Number(rawValue) >= 1000;
-
-                    if (!isFutureMonth && !isPaidOrAbsent) {
+                  {months.map((month, idx) => {
+                    const val = user[month];
+                    if (val === undefined || val === null || val === "" || Number(val) < 1000) {
                       return <option key={month} value={month}>{month}</option>;
                     }
                     return null;
@@ -272,7 +242,7 @@ export default function MoreDetail() {
           <thead>
             <tr align="center">
               {months.map((month) => (
-                <th key={month}>{month}</th>
+                <th key={month}>{month}-2026</th>
               ))}
             </tr>
           </thead>
