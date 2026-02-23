@@ -2,7 +2,10 @@
 import { useState, useEffect } from "react";
 import { Col, Container, Row } from "react-bootstrap";
 import { LoadingIcon } from "@/src/app/app-constants";
+<<<<<<< HEAD
 import Link from "next/link";
+=======
+>>>>>>> 8b7b8ce83cfe8b9a627863247af8225721c4bedc
 
 export default function Page() {
   const [attendance, setAttendance] = useState([]);
@@ -37,17 +40,25 @@ export default function Page() {
 
   // Auto-delete users whose fee is due
   const autoDeleteDueUsers = async (users) => {
+<<<<<<< HEAD
 
+=======
+>>>>>>> 8b7b8ce83cfe8b9a627863247af8225721c4bedc
     for (const user of users) {
       if (!user.joiningDate || !user.userId) continue;
 
       const joining = new Date(user.joiningDate);
       const today = new Date();
       const feeDue = today.getDate() >= joining.getDate();
+<<<<<<< HEAD
       const currentFee = user.currentMonthValue === "";
 
 
       if (feeDue && currentFee) {
+=======
+
+      if (feeDue) {
+>>>>>>> 8b7b8ce83cfe8b9a627863247af8225721c4bedc
         try {
           await fetch("/api/zkteco/delete-auto", {
             method: "POST",
@@ -106,7 +117,11 @@ useEffect(() => {
             {attendance.length === 0 ? (
               <p>No attendance records found.</p>
             ) : (
+<<<<<<< HEAD
               <div className="table-responsive listingTable">
+=======
+              <div className="table-responsive">
+>>>>>>> 8b7b8ce83cfe8b9a627863247af8225721c4bedc
                 <table className="table">
                   <thead>
                     <tr>
@@ -115,7 +130,10 @@ useEffect(() => {
                       <th>Phone</th>
                       <th>Joining Date</th>
                         <th>Total Attendance</th>
+<<<<<<< HEAD
                         <th>View Details</th>
+=======
+>>>>>>> 8b7b8ce83cfe8b9a627863247af8225721c4bedc
                           </tr>
                   </thead>
                   <tbody>
@@ -127,8 +145,12 @@ useEffect(() => {
                           <td>{user.name || ""}</td>
                           <td>{user.phone || ""}</td>
                           <td>{user.joiningDate || "-"}</td>
+<<<<<<< HEAD
                           <td>{user.totalAttendance}</td>
                           <td> <Link href={`/MoreDetail/${user.id}`}>View More</Link></td>
+=======
+                            <td>{user.totalAttendance}</td>
+>>>>>>> 8b7b8ce83cfe8b9a627863247af8225721c4bedc
                           
                         </tr>
                       );
