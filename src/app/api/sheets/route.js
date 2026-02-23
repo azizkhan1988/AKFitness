@@ -12,7 +12,6 @@ export async function GET(req) {
 
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = "1UvC5d_PJjNdClaDWiOa96O4IO2xGRFQCd72xtK-a2X0";
-<<<<<<< HEAD
 
     // 1️⃣ Fetch header row to find current month
     const headerResponse = await sheets.spreadsheets.values.get({
@@ -51,25 +50,6 @@ export async function GET(req) {
         totalAttendance: row[19],
       };
     });
-=======
-    const range = "Sheet1!A2:T"; // id, name, phone, joiningDate, userId, totalAttendance
-
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range,
-    });
-
-    const rows = response.data.values || [];
-
-    const attendance = rows.map((row) => ({
-      id: row[0],
-      name: row[1],
-      phone: row[2],
-      joiningDate: row[3],
-      userId: row[18],
-      totalAttendance: row[19],
-    }));
->>>>>>> 8b7b8ce83cfe8b9a627863247af8225721c4bedc
 
     return new Response(
       JSON.stringify({ success: true, attendance }),
@@ -82,8 +62,4 @@ export async function GET(req) {
       { status: 500 }
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 8b7b8ce83cfe8b9a627863247af8225721c4bedc
