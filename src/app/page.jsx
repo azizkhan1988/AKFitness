@@ -142,7 +142,7 @@ const sortedAttendance = [...attendance].sort((a, b) => {
                         const today = new Date().getDate();
                         const remainingDays = joiningDay - today;
 
-                        if (remainingDays <= 3 && remainingDays >= 0) {
+                        if (remainingDays <= 5 && remainingDays >= 0) {
                           highlight = true;
                           warningText = `${remainingDays} days left`;
                         }
