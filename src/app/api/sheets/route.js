@@ -44,6 +44,7 @@ export async function GET(req) {
         id: row[0],
         name: row[1],
         phone: row[2],
+        image: row[5],
         joiningDate: joiningDateStr,
         currentMonthValue: currentValue || "",
         userId: row[18],

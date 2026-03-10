@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Col, Container, Row } from "react-bootstrap";
 import { LoadingIcon } from "@/src/app/app-constants";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Page() {
   const [attendance, setAttendance] = useState([]);
@@ -125,6 +126,7 @@ const sortedAttendance = [...attendance].sort((a, b) => {
                   <thead>
                     <tr>
                       <th>ID</th>
+                      <th>Image</th>
                       <th>Name</th>
                       <th>Phone</th>
                       <th>Joining Date</th>
@@ -157,6 +159,14 @@ const sortedAttendance = [...attendance].sort((a, b) => {
         }}
       >
         <td style={{ verticalAlign: "middle" }}>{user.id || ""}</td>
+        <td style={{ verticalAlign: "middle" }}>
+          <div className="imageBox">
+            {user.image && (
+               <Image src={user.image} alt="" fill/>
+            )}
+          
+          </div>
+          </td>
         <td style={{ verticalAlign: "middle" }}>{user.name || ""}</td>
         <td style={{ verticalAlign: "middle" }}>{user.phone || ""}</td>
         <td style={{ verticalAlign: "middle" }}>{user.joiningDate || "-"}</td>
