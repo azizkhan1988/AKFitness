@@ -162,7 +162,7 @@ const sortedAttendance = [...attendance].sort((a, b) => {
         <td style={{ verticalAlign: "middle" }}>
           <div className="imageBox">
             {user.image && (
-               <Image src={user.image} alt="" fill/>
+               <Image src={user.image} alt="iamge" fill  unoptimized  loading="lazy" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"/>
             )}
           
           </div>

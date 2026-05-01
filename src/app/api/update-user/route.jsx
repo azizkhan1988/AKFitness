@@ -1,6 +1,4 @@
 import { google } from "googleapis";
-import path from "path";
-import { promises as fs } from "fs";
 
 const monthToColumnIndex = {
   Jan: 7,
@@ -32,7 +30,8 @@ export async function PATCH(req) {
   try {
     const { id, month, fee } = await req.json();
 
-    if (!id || !month || !fee) {
+    // ✅ FIX 1: fee === undefined (0 allow karega)
+    if (!id || !month || fee === undefined) {
       return new Response(
         JSON.stringify({ error: "Missing id, month, or fee" }),
         { status: 400 }
@@ -56,24 +55,33 @@ export async function PATCH(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = "1UvC5d_PJjNdClaDWiOa96O4IO2xGRFQCd72xtK-a2X0";
 
-    // Step 1: Find user row
+    // 🔥 FIX 2: Proper row detection (empty rows issue solved)
     const getIdsResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A2:A",
     });
 
-    const ids = getIdsResponse.data.values?.flat() || [];
-    const rowIndex = ids.findIndex((sheetId) => sheetId === id);
+    const rows = getIdsResponse.data.values || [];
 
-    if (rowIndex === -1) {
+    let sheetRowNumber = null;
+
+    rows.forEach((row, index) => {
+      if (row[0] && String(row[0]).trim() === String(id)) {
+        sheetRowNumber = index + 2;
+      }
+    });
+
+    if (!sheetRowNumber) {
       return new Response(JSON.stringify({ error: "User ID not found" }), {
         status: 404,
       });
     }
 
-    const sheetRowNumber = rowIndex + 2;
     const columnIndex = monthToColumnIndex[month];
     const cell = `${columnToLetter(columnIndex)}${sheetRowNumber}`;
+
+    // 🔍 DEBUG (optional but useful)
+    console.log("Updating Cell:", cell, "Value:", fee);
 
     // Step 2: Update fee
     await sheets.spreadsheets.values.update({
@@ -86,6 +94,7 @@ export async function PATCH(req) {
     });
 
     return new Response(JSON.stringify({ success: true }), { status: 200 });
+
   } catch (error) {
     console.error("Error updating user:", error);
     return new Response(JSON.stringify({ error: "Failed to update user" }), {
