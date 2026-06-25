@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/zkteco/sync-users",
+      "schedule": "*/10 * * * *"
+    }
+  ]
+}

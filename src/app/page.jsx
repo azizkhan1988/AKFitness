@@ -9,6 +9,7 @@ export default function Page() {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
+
   // Fetch attendance from API
   const fetchAttendance = async () => {
     setLoading(true);
