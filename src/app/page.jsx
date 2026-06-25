@@ -72,30 +72,51 @@ export default function Page() {
   };
 
   useEffect(() => {
-    const fetchAndDelete = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/sheets");
-        const data = await res.json();
-        if (data.success && Array.isArray(data.attendance)) {
-          const filtered = data.attendance.filter(
-            (user) => user.userId && user.totalAttendance
-          );
-          setAttendance(filtered);
-          await autoDeleteDueUsers(data.attendance);
-        } else {
-          setAttendance([]);
-        }
-      } catch (err) {
-        console.error(err);
-        setAttendance([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchAndDelete = async () => {
+    setLoading(true);
 
-    fetchAndDelete();
-  }, []);
+    try {
+      // ✅ Pehle ZKTeco se new users sync karo
+      await fetch("/api/zkteco/sync-users");
+
+      // ✅ Phir Sheet data load karo
+      const res = await fetch("/api/sheets");
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.attendance)) {
+        const filtered = data.attendance.filter(
+          (user) => user.userId && user.totalAttendance
+        );
+
+        setAttendance(filtered);
+
+        await autoDeleteDueUsers(data.attendance);
+      } else {
+        setAttendance([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setAttendance([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // First Load
+  fetchAndDelete();
+
+  // ✅ Har 10 minute baad sync + refresh
+  const interval = setInterval(async () => {
+    try {
+      await fetch("/api/zkteco/sync-users");
+      await fetchAttendance();
+    } catch (err) {
+      console.error("Sync Error:", err);
+    }
+  }, 600000); // 10 minutes
+
+  return () => clearInterval(interval);
+}, []);
 
   if (loading) return <div className="LoadingIcon"><LoadingIcon /></div>;
 
