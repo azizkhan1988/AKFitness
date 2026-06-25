@@ -2,9 +2,6 @@ import { Col, Container, Row } from "react-bootstrap";
 import UserShow from "@/src/app/components/userShow";
 
 
-
-
-
 const Page = () => {
     return (
         <section className="mainSection">
