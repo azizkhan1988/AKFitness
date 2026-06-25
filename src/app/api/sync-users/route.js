@@ -1,11 +1,10 @@
 import Zkteco from "zkteco-js";
 import { google } from "googleapis";
 
+export const runtime = "nodejs"; // 🔥 IMPORTANT for Vercel
+
 const spreadsheetId = process.env.SPREADSHEET_ID;
 
-// ----------------------
-// Google Sheets Client
-// ----------------------
 async function getSheets() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -18,14 +17,13 @@ async function getSheets() {
   return google.sheets({ version: "v4", auth });
 }
 
-// ----------------------
-// MAIN API
-// ----------------------
 export async function GET() {
+  let device;
+
   try {
     const sheets = await getSheets();
 
-    // 1️⃣ Get sheet data
+    // 1️⃣ Sheet data
     const sheetRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "Sheet1!A2:T",
@@ -33,12 +31,12 @@ export async function GET() {
 
     const rows = sheetRes.data.values || [];
 
-    // 2️⃣ Connect ZKTeco device
-    const device = new Zkteco(
+    // 2️⃣ Device connect (SAFE)
+    device = new Zkteco(
       process.env.ZKTECO_IP,
       4370,
-      10000,
-      4000
+      15000,
+      5000
     );
 
     await device.createSocket();
@@ -48,56 +46,54 @@ export async function GET() {
 
     let updatedCount = 0;
 
-    // 3️⃣ Loop sheet rows
+    // 3️⃣ Sync loop (OPTIMIZED)
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
 
-      const userId = row[18]; // userId column
+      const userId = row[18];
       if (!userId) continue;
 
       const match = deviceUsers.find(
         (u) => String(u.userId) === String(userId)
       );
 
-      if (match) {
-        // ----------------------
-        // UPDATE LOGIC
-        // ----------------------
+      if (!match) continue;
 
-        // Example: totalAttendance update
-        row[19] = match.userId ? "1" : row[19];
-
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `Sheet1!A${i + 2}:T${i + 2}`,
-          valueInputOption: "USER_ENTERED",
-          requestBody: {
-            values: [row],
-          },
-        });
-
-        updatedCount++;
+      // Example logic (attendance update safe)
+      if (!row[19]) {
+        row[19] = "1";
       }
-    }
 
-    // 4️⃣ Disconnect device
-    await device.disconnect();
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Sheet1!A${i + 2}:T${i + 2}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [row],
+        },
+      });
+
+      updatedCount++;
+    }
 
     return Response.json({
       success: true,
-      message: "Sync completed successfully",
       updated: updatedCount,
     });
+
   } catch (error) {
     console.error("SYNC ERROR:", error);
 
     return Response.json(
-      {
-        success: false,
-        message: "Sync failed",
-        error: error.message,
-      },
+      { success: false, error: error.message },
       { status: 500 }
     );
+
+  } finally {
+    if (device) {
+      try {
+        await device.disconnect();
+      } catch {}
+    }
   }
 }

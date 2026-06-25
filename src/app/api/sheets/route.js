@@ -33,11 +33,10 @@ export async function GET() {
       "Jul","Aug","Sep","Oct","Nov","Dec"
     ];
 
-    const currentMonthName =
-      monthNames[new Date().getMonth()];
+    const currentMonthName = monthNames[new Date().getMonth()];
 
     const currentMonthIndex = headers.findIndex(
-      (h) => h?.trim() === currentMonthName
+      (h) => (h || "").trim() === currentMonthName
     );
 
     const attendance = rows.map((row) => ({
@@ -47,16 +46,13 @@ export async function GET() {
       joiningDate: row[3] || "",
       admissionFee: row[4] || "",
       image: row[5] || "",
-      currentMonthValue:
-        row[currentMonthIndex] || "",
+      currentMonthValue: row[currentMonthIndex] || "",
       userId: row[18] || "",
       totalAttendance: row[19] || "",
     }));
 
-    return Response.json({
-      success: true,
-      attendance,
-    });
+    return Response.json({ success: true, attendance });
+
   } catch (err) {
     return Response.json(
       { success: false, error: err.message },
