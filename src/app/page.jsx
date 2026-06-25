@@ -58,7 +58,6 @@ export default function Page() {
               joiningDate: user.joiningDate,
               currentMonthValue: user.currentMonthValue,
               totalAttendance: user.totalAttendance,
-
             }),
           });
           console.log(`Auto-deleted user ${user.userId}`);
