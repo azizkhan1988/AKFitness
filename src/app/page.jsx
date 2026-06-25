@@ -13,9 +13,7 @@ export default function Page() {
   const fetchAttendance = async () => {
     setLoading(true);
     try {
-      const res1 = await fetch("/api/zkteco/attendance");
       const res = await fetch("/api/sheets");
-      const data1 = await res1.json();
       const data = await res.json();
 
       if (data.success && Array.isArray(data.attendance)) {
@@ -38,13 +36,18 @@ export default function Page() {
   // Auto-delete users whose fee is due
   const autoDeleteDueUsers = async (users) => {
     for (const user of users) {
-      if (!user.joiningDate || !user.userId) continue;
+      if (
+        !user.joiningDate ||
+        !user.userId ||
+        !user.totalAttendance
+      ) {
+        continue;
+      }
 
       const joining = new Date(user.joiningDate);
       const today = new Date();
       const feeDue = today.getDate() >= joining.getDate();
-      const currentFee = user.currentMonthValue === "";
-
+      const currentFee = !user.currentMonthValue || user.currentMonthValue.toString().trim() === "";
       if (feeDue && currentFee) {
         try {
           await fetch("/api/zkteco/delete-auto", {
@@ -53,6 +56,9 @@ export default function Page() {
             body: JSON.stringify({
               userId: user.userId,
               joiningDate: user.joiningDate,
+              currentMonthValue: user.currentMonthValue,
+              totalAttendance: user.totalAttendance,
+
             }),
           });
           console.log(`Auto-deleted user ${user.userId}`);
@@ -62,7 +68,7 @@ export default function Page() {
       }
     }
 
-    fetchAttendance();
+    await fetchAttendance();
   };
 
   useEffect(() => {
@@ -76,7 +82,7 @@ export default function Page() {
             (user) => user.userId && user.totalAttendance
           );
           setAttendance(filtered);
-          await autoDeleteDueUsers(filtered);
+          await autoDeleteDueUsers(data.attendance);
         } else {
           setAttendance([]);
         }
@@ -93,24 +99,24 @@ export default function Page() {
 
   if (loading) return <div className="LoadingIcon"><LoadingIcon /></div>;
 
-// ⭐ Sorting by remaining days (1 day -> 2 -> 3)
-const sortedAttendance = [...attendance].sort((a, b) => {
-  const today = new Date().getDate();
+  // ⭐ Sorting by remaining days (1 day -> 2 -> 3)
+  const sortedAttendance = [...attendance].sort((a, b) => {
+    const today = new Date().getDate();
 
-  const aDays = a.joiningDate
-    ? new Date(a.joiningDate).getDate() - today
-    : 999;
+    const aDays = a.joiningDate
+      ? new Date(a.joiningDate).getDate() - today
+      : 999;
 
-  const bDays = b.joiningDate
-    ? new Date(b.joiningDate).getDate() - today
-    : 999;
+    const bDays = b.joiningDate
+      ? new Date(b.joiningDate).getDate() - today
+      : 999;
 
-  // negative days ko last me bhej do
-  const aValue = aDays < 0 ? 999 : aDays;
-  const bValue = bDays < 0 ? 999 : bDays;
+    // negative days ko last me bhej do
+    const aValue = aDays < 0 ? 999 : aDays;
+    const bValue = bDays < 0 ? 999 : bDays;
 
-  return aValue - bValue;
-});
+    return aValue - bValue;
+  });
   return (
     <section className="mainSection">
       <Container>
@@ -151,32 +157,32 @@ const sortedAttendance = [...attendance].sort((a, b) => {
                       }
 
                       return (
-                       <tr
-        key={index}
-        style={{
-          backgroundColor: highlight ? "#fff3cd" : "",
-          verticalAlign: "middle", // ✅ vertical center for <tr>
-        }}
-      >
-        <td style={{ verticalAlign: "middle" }}>{user.id || ""}</td>
-        <td style={{ verticalAlign: "middle" }}>
-          <div className="imageBox">
-            {user.image && (
-               <Image src={user.image} alt="iamge" fill  unoptimized  loading="lazy" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"/>
-            )}
-          
-          </div>
-          </td>
-        <td style={{ verticalAlign: "middle" }}>{user.name || ""}</td>
-        <td style={{ verticalAlign: "middle" }}>{user.phone || ""}</td>
-        <td style={{ verticalAlign: "middle" }}>{user.joiningDate || "-"}</td>
-        <td style={{ color: "red", fontWeight: "bold", verticalAlign: "middle" }}>
-          {warningText}
-        </td>
-         <td style={{ verticalAlign: "middle" }}>
-          <Link href={`/MoreDetail/${user.id}`}>View More</Link>
-        </td>
-      </tr>
+                        <tr
+                          key={index}
+                          style={{
+                            backgroundColor: highlight ? "#fff3cd" : "",
+                            verticalAlign: "middle", // ✅ vertical center for <tr>
+                          }}
+                        >
+                          <td style={{ verticalAlign: "middle" }}>{user.id || ""}</td>
+                          <td style={{ verticalAlign: "middle" }}>
+                            <div className="imageBox">
+                              {user.image && (
+                                <Image src={user.image} alt="" fill sizes="(max-width: 768px) 50px, 60px" />
+                              )}
+
+                            </div>
+                          </td>
+                          <td style={{ verticalAlign: "middle" }}>{user.name || ""}</td>
+                          <td style={{ verticalAlign: "middle" }}>{user.phone || ""}</td>
+                          <td style={{ verticalAlign: "middle" }}>{user.joiningDate || "-"}</td>
+                          <td style={{ color: "red", fontWeight: "bold", verticalAlign: "middle" }}>
+                            {warningText}
+                          </td>
+                          <td style={{ verticalAlign: "middle" }}>
+                            <Link href={`/MoreDetail/${user.id}`}>View More</Link>
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>
