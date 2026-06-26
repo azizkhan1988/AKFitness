@@ -13,9 +13,7 @@ export default function Page() {
   const fetchAttendance = async () => {
     setLoading(true);
     try {
-      const res1 = await fetch("/api/zkteco/attendance");
       const res = await fetch("/api/sheets");
-      const data1 = await res1.json();
       const data = await res.json();
 
       if (data.success && Array.isArray(data.attendance)) {

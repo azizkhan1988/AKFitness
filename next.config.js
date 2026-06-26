@@ -20,6 +20,7 @@ const nextConfig = {
       hostname: "localhost", // local dev
     }
   ],
+  unoptimized: true, 
 },
 
 };
