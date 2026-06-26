@@ -1,101 +1,84 @@
 import Zkteco from "zkteco-js";
 import { google } from "googleapis";
 
-const DEVICE_IP = process.env.ZK_DEVICE_IP;
-const DEVICE_PORT = process.env.ZK_DEVICE_PORT || 4370;
-
-const spreadsheetId = process.env.SPREADSHEET_ID;
-
-// 🔗 Google Auth
-async function getAuth() {
-  return new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    },
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-}
-
 export async function GET() {
-  let zk;
+  let device;
 
   try {
-    // 1️⃣ Connect ZKTeco device
-    zk = new Zkteco(DEVICE_IP, DEVICE_PORT, 10000, 4000);
-    await zk.connect();
+    device = new Zkteco(process.env.ZKTECO_IP, 4370, 10000, 4000);
 
-    const users = await zk.getUsers();
+    await device.createSocket();
 
-    if (!users || users.length === 0) {
-      return Response.json({
-        success: true,
-        message: "No users found in device",
-        added: 0,
-      });
-    }
+    const usersRes = await device.getUsers();
 
-    // 2️⃣ Google Sheets auth
-    const auth = await getAuth();
-    const sheets = google.sheets({ version: "v4", auth });
+    const users = Array.isArray(usersRes)
+      ? usersRes
+      : usersRes?.data || [];
 
-    // 3️⃣ Existing sheet data
-    const sheetRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Sheet1!A2:F",
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
-    const existingRows = sheetRes.data.values || [];
-    const existingIds = new Set(existingRows.map((r) => String(r[0])));
+    const sheets = google.sheets({ version: "v4", auth });
 
-    // 4️⃣ Prepare new rows
+    const sheet = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: "Sheet1!A2:T500",
+    });
+
+    const rows = sheet.data.values || [];
+    const existing = new Set(rows.map((r) => String(r[18])));
+
     const newRows = [];
 
     for (const user of users) {
-      const userId = String(user.userId || user.uid || "");
-
-      if (!userId) continue;
-
-      // skip duplicates
-      if (existingIds.has(userId)) continue;
+      const id = String(user.userId || "");
+      if (!id || existing.has(id)) continue;
 
       newRows.push([
-        userId,
+        id,
         user.name || "",
         user.phone || "",
-        user.privilege || "",
-        new Date().toISOString().split("T")[0], // sync date
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        id,
+        "0",
       ]);
     }
 
-    // 5️⃣ Append to sheet
-    if (newRows.length > 0) {
+    if (newRows.length) {
       await sheets.spreadsheets.values.append({
-        spreadsheetId,
+        spreadsheetId: process.env.SPREADSHEET_ID,
         range: "Sheet1!A2",
         valueInputOption: "RAW",
-        requestBody: {
-          values: newRows,
-        },
+        requestBody: { values: newRows },
       });
     }
 
-    // 6️⃣ Disconnect device (safe cleanup)
-    try {
-      await zk.disconnect();
-    } catch {}
+    await device.disconnect();
 
     return Response.json({
       success: true,
-      totalDeviceUsers: users.length,
-      addedToSheet: newRows.length,
+      added: newRows.length,
     });
   } catch (err) {
-    console.error("SYNC ERROR:", err);
-
-    return Response.json({
-      success: false,
-      error: err.message || "Sync failed",
-    });
+    return Response.json({ success: false, error: err.message });
   }
 }

@@ -197,7 +197,7 @@ const calculateRemainingFee = (user) => {
                 : "";
 
               return (
-               <tr key={id || `row-${index}`}>
+                <tr key={id}>
                   <td>{id}</td>
                   <td>{name}</td>
                   <td>

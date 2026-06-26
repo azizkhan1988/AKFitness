@@ -11,7 +11,7 @@ export async function GET(req) {
     });
 
     const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const spreadsheetId = "1UvC5d_PJjNdClaDWiOa96O4IO2xGRFQCd72xtK-a2X0";
 
     // 1️⃣ Fetch header row to find current month
     const headerResponse = await sheets.spreadsheets.values.get({
