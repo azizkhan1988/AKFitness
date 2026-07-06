@@ -2,12 +2,14 @@
 .headerSection {
   height: 100px;
   background: #f9f9f9;
+
   .mainLogo {
     svg {
       height: 80px;
       width: auto;
     }
   }
+
   .mainNavigation {
     display: flex;
     justify-content: flex-end;
@@ -16,6 +18,7 @@
     padding: 0px;
     margin: 0px;
     gap: 20px;
+
     li {
       a {
         font-size: 16px;
@@ -31,6 +34,7 @@
         font-weight: 500;
         text-transform: capitalize;
         border-radius: 5px;
+
         &:hover {
           color: #fff;
           border: 1px solid #fe0308;
@@ -40,11 +44,13 @@
     }
   }
 }
+
 .LoadingIcon {
   margin: auto;
   width: 100%;
   height: 100%;
   display: block;
+
   svg {
     width: 200px;
     height: 100%;
@@ -55,46 +61,55 @@
     align-items: center;
   }
 }
+
 .redColor {
   background: #fe0308;
   color: #fff;
   font-weight: 600;
   padding-left: 10px;
 }
-.YellowColor{
-   background: #ffc107;
+
+.YellowColor {
+  background: #ffc107;
   color: #000;
   font-weight: 600;
   padding-left: 10px;
 }
+
 .greenColor {
   color: #fff;
   font-weight: 600;
   background: green;
   padding-left: 10px;
 }
+
 .DetailsListing {
   .redColor {
     padding-left: 0px;
   }
+
   .greenColor {
     padding-left: 0px;
   }
 }
+
 // MainSection
 .mainSection {
   height: 100vh;
   padding-top: 50px;
+
   h2 {
     font-size: 40px;
     line-height: 50px;
     margin-bottom: 20px;
     color: #333;
   }
+
   .container {
     box-shadow: 0px 0px 15px 0px rgba(0, 0, 0, 0.2);
     padding: 30px;
     border-radius: 10px;
+
     .listingTable {
       table {
         thead {
@@ -105,19 +120,23 @@
               height: 50px;
               line-height: 50px;
               padding: 0px;
+
               &:first-child {
                 padding-left: 10px;
               }
-                 &:nth-child(2) {
-               min-width: 80px;
-               text-align: center;
+
+              &:nth-child(2) {
+                min-width: 80px;
+                text-align: center;
               }
+
               &:last-child {
                 text-align: center;
               }
             }
           }
         }
+
         tbody {
           tr {
             td {
@@ -126,25 +145,30 @@
               height: 60px;
               line-height: 60px;
               padding: 0px;
+
               &:first-child {
                 padding-left: 10px;
               }
-               &:nth-child(2) {
-               min-width: 80px;
-                .imageBox{
+
+              &:nth-child(2) {
+                min-width: 80px;
+
+                .imageBox {
                   margin: auto;
-                width: 50px;
-                height: 50px;
-                position: relative;
-                border-radius: 100px;
-                background: #000;
-                img{
-                  object-fit: cover;
+                  width: 50px;
+                  height: 50px;
+                  position: relative;
                   border-radius: 100px;
-                  z-index: 2;
+                  background: #000;
+
+                  img {
+                    object-fit: cover;
+                    border-radius: 100px;
+                    z-index: 2;
+                  }
                 }
               }
-              }
+
               &:last-child {
                 text-align: right;
                 padding: 0px;
@@ -153,7 +177,7 @@
                 align-items: center;
                 align-items: center;
               }
-             
+
               a {
                 font-size: 13px;
                 color: #000;
@@ -168,6 +192,7 @@
                 text-transform: capitalize;
                 margin: auto;
                 border-radius: 5px;
+
                 &:hover {
                   color: #fff;
                   border: 1px solid #fe0308;
@@ -179,11 +204,13 @@
         }
       }
     }
+
     .DetailsListing {
       table {
         thead {
           tr {
             display: flex;
+
             th {
               font-weight: 600;
               font-size: 15px;
@@ -194,9 +221,11 @@
             }
           }
         }
+
         tbody {
           tr {
             display: flex;
+
             td {
               font-weight: 400;
               font-size: 15px;
@@ -215,6 +244,7 @@
         display: flex;
         flex-wrap: wrap;
         justify-content: space-between;
+
         input {
           flex: 0 0 calc(50% - 10px);
           width: 100%;
@@ -228,12 +258,15 @@
           outline: none;
           box-shadow: none;
           color: #000;
+
           &::placeholder {
             color: #000;
           }
+
           &[type="number"] {
             -moz-appearance: textfield;
           }
+
           &::-webkit-outer-spin-button,
           &::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -253,6 +286,7 @@
             }
           }
         }
+
         select {
           flex: 0 0 calc(50% - 10px);
           width: 100%;
@@ -268,15 +302,18 @@
           color: #000;
         }
       }
+
       .flexBtn {
         display: flex;
         gap: 10px;
+
         button {
           height: 40px;
           width: 160px;
           font-size: 15px;
         }
       }
+
       button {
         font-size: 16px;
         color: #000;
@@ -300,13 +337,16 @@
         }
       }
     }
+
     .headingSec {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 40px;
+
       div {
         flex: 0 0 50%;
+
         .btnCommon {
           font-size: 14px;
           color: #000;
@@ -330,12 +370,14 @@
             background: #fe0308;
           }
         }
+
         &:last-child {
           .mainSelectBox {
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            gap:10px;
+            gap: 10px;
+
             label {
               font-size: 20px;
               color: #000;
@@ -343,8 +385,9 @@
               font-weight: 500;
               display: block;
             }
+
             select {
-                  width: 100%;
+              width: 100%;
               height: 50px;
               padding: 0px 0px 0px 10px;
               font-weight: 500;
@@ -354,15 +397,17 @@
               outline: none;
               box-shadow: none;
               color: #000;
+
               option {
                 font-weight: 500;
                 font-size: 15px;
                 border: 0px;
               }
             }
+
             input {
-               width: 100%;
-                height: 50px;
+              width: 100%;
+              height: 50px;
               padding: 0px 0px 0px 10px;
               font-weight: 400;
               font-size: 15px;
@@ -371,6 +416,7 @@
               outline: none;
               box-shadow: none;
               color: #000;
+
               &::placeholder {
                 color: #000;
               }
@@ -379,32 +425,39 @@
         }
       }
     }
+
     .userInfo {
       display: flex;
       justify-items: center;
+
       .imageBox {
         flex: 0 0 30%;
+
         .LoadingIcon {
           width: 200px;
           height: 200px;
           margin: 0px;
+
           svg {
             width: 120px;
             height: 120px;
           }
         }
+
         .boxFileImage {
           width: 200px;
           height: 200px;
           border-radius: 100%;
           position: relative;
           margin-bottom: 10px;
+
           img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             border-radius: 100%;
           }
+
           input {
             width: 100%;
             height: 100%;
@@ -418,6 +471,7 @@
             cursor: pointer;
           }
         }
+
         .userImagePrev {
           width: 200px;
           border-radius: 100%;
@@ -425,6 +479,7 @@
           position: relative;
           z-index: 9;
           margin-bottom: 10px;
+
           img {
             width: 100%;
             height: 100%;
@@ -432,18 +487,21 @@
             border-radius: 100% !important;
           }
         }
+
         .deleteBtn {
           position: absolute;
           right: 5px;
           top: 5px;
           z-index: 99;
           cursor: pointer;
+
           svg {
             width: 35px;
             height: 35px;
           }
         }
       }
+
       .userListItem {
         flex: 0 0 70%;
         display: flex;
@@ -455,9 +513,11 @@
           flex: 0 0 calc(100% / 1);
           border-bottom: 1px solid #dddddd;
           padding: 5px 10px;
+
           &:first-child {
             border-left: 0px;
           }
+
           strong {
             width: 300px;
             display: inline-block;
@@ -467,4 +527,31 @@
       }
     }
   }
+}
+
+.btnFlex{
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+.btnSync {
+  font-size: 16px;
+  color: #000;
+  text-decoration: none;
+  border: 1px solid #000;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 220px;
+  font-weight: 500;
+  text-transform: capitalize;
+  border-radius: 5px;
+  cursor: pointer;
+  &:hover {
+    color: #fff;
+    border: 1px solid #fe0308;
+    background: #fe0308;
+  }
+}
 }

@@ -1,110 +1,185 @@
 import Zkteco from "zkteco-js";
 import { google } from "googleapis";
 
-// Update Google Sheet function (unchanged)
-async function updateSheet(userId, totalAttendance) {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    },
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
+function updateSheet(rows, userId, totalAttendance) {
+  const rowIndex = rows.findIndex(
+    (row) => row[0] === String(userId)
+  );
 
-  const sheets = google.sheets({ version: "v4", auth });
-  const spreadsheetId = "1UvC5d_PJjNdClaDWiOa96O4IO2xGRFQCd72xtK-a2X0";
-  const range = "Sheet1!A2:T"; // read all columns including userId & totalAttendance
+  if (rowIndex === -1) return;
 
-  // Get all rows
-  const response = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-  const rows = response.data.values || [];
+  while (rows[rowIndex].length < 20) {
+    rows[rowIndex].push("");
+  }
 
-  // Find row where first column (id) matches userId
-  const rowIndex = rows.findIndex(row => row[0] === String(userId));
-  if (rowIndex === -1) return; // ID not found
-
-  // Make sure row has at least 20 columns
-  while (rows[rowIndex].length < 20) rows[rowIndex].push("");
-
-  // Update only columns S & T (indexes 18 & 19)
-  rows[rowIndex][18] = String(userId);       // S column
-  rows[rowIndex][19] = totalAttendance;      // T column
-
-  const updateRange = `Sheet1!A${rowIndex + 2}:T${rowIndex + 2}`;
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: updateRange,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values: [rows[rowIndex]] },
-  });
-
-  console.log(`Updated userId & totalAttendance for ID ${userId}`);
+  rows[rowIndex][18] = String(userId);
+  rows[rowIndex][19] = String(totalAttendance);
 }
-
-
-export async function GET() {
-const device = new Zkteco(process.env.ZKTECO_IP, 4370, 10000, 4000);
+export async function POST() {
+  const device = new Zkteco(
+    process.env.ZKTECO_IP,
+    4370,
+    10000,
+    4000
+  );
 
   try {
+    // ==========================
+    // Connect Machine
+    // ==========================
     await device.createSocket();
 
-    // Fetch users
+    // Get Users
     const usersRes = await device.getUsers();
-    const users = Array.isArray(usersRes.data) ? usersRes.data : [];
+    const users = Array.isArray(usersRes?.data)
+      ? usersRes.data
+      : Array.isArray(usersRes)
+        ? usersRes
+        : [];
 
-    // Fetch attendance logs
+    // Get Attendance Logs
     const attendanceRes = await device.getAttendances();
-    const logs = Array.isArray(attendanceRes.data) ? attendanceRes.data : [];
+    const logs = Array.isArray(attendanceRes?.data)
+      ? attendanceRes.data
+      : Array.isArray(attendanceRes)
+        ? attendanceRes
+        : [];
 
-    await device.disconnect();
-
-    // Initialize attendance map
-    const attendanceMap = {};
-    users.forEach(u => {
-      attendanceMap[u.userId] = {
-        userId: u.userId,
-        name: u.name,
-        totalAttendance: 0, // start from 0
-      };
+    // ==========================
+    // Google Auth
+    // ==========================
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: [
+        "https://www.googleapis.com/auth/spreadsheets",
+      ],
     });
 
-    // Count attendance **once per day per user**
-    const userDates = {}; // { userId: Set of yyyy-mm-dd }
+    const sheets = google.sheets({
+      version: "v4",
+      auth,
+    });
 
-    logs.forEach(log => {
-      const logUserId = String(log.userId ?? log.user_id ?? log.uid ?? "");
-      if (!logUserId || !attendanceMap[logUserId]) return;
+    const spreadsheetId = process.env.SPREADSHEET_ID;
 
-      // Extract date part only
-      const logTime = new Date(log.timestamp ?? log.time ?? log.date ?? Date.now());
-      const dateKey = logTime.toISOString().split("T")[0]; 
+    // ==========================
+    // Read Google Sheet Once
+    // ==========================
+    const sheetResponse =
+      await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "Sheet1!A2:T",
+      });
 
-      if (!userDates[logUserId]) userDates[logUserId] = new Set();
+    const rows = sheetResponse.data.values || [];
+    if (!rows.length) {
+      return Response.json({
+        success: true,
+        attendance: [],
+      });
+    }
 
-      if (!userDates[logUserId].has(dateKey)) {
-        // first scan of the day, increment totalAttendance
-        attendanceMap[logUserId].totalAttendance += 1;
-        userDates[logUserId].add(dateKey);
+    // ==========================
+    // Attendance Map
+    // ==========================
+    const attendanceMap = new Map();
+
+    users.forEach((user) => {
+      attendanceMap.set(String(user.userId), {
+        userId: String(user.userId),
+        name: user.name || "",
+        totalAttendance: 0,
+      });
+    });
+    // ==========================
+    // Count Attendance
+    // One Attendance Per Day
+    // ==========================
+    const userDates = new Map();
+    logs.forEach((log) => {
+      const userId = String(
+        log.userId ??
+        log.user_id ??
+        log.uid ??
+        ""
+      );
+
+      if (!attendanceMap.has(userId)) return;
+
+      const logDate = new Date(
+        log.timestamp ??
+        log.time ??
+        log.date ??
+        Date.now()
+      );
+
+      if (isNaN(logDate.getTime())) return;
+
+      const dateKey = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Karachi",
+      }).format(logDate);
+
+      
+      if (!userDates.has(userId)) {
+        userDates.set(userId, new Set());
+      }
+
+      const dates = userDates.get(userId);
+
+      if (!dates.has(dateKey)) {
+        attendanceMap.get(userId).totalAttendance++;
+        dates.add(dateKey);
       }
     });
 
-    const attendanceSummary = Object.values(attendanceMap);
+    // ==========================
+    // Update Sheet Array
+    // ==========================
+    const attendanceSummary = Array.from(attendanceMap.values());
 
-    // Update Google Sheet for each user
-    for (const user of attendanceSummary) {
-      await updateSheet(user.userId, user.totalAttendance);
-    }
+    attendanceSummary.forEach((user) => {
+      updateSheet(
+        rows,
+        user.userId,
+        user.totalAttendance
+      );
+    });
 
-    return new Response(
-      JSON.stringify({ success: true, attendance: attendanceSummary }),
-      { status: 200 }
-    );
+    // ==========================
+    // Update Google Sheet Once
+    // ==========================
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Sheet1!A2:T${rows.length + 1}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: rows,
+      },
+    });
+
+    return Response.json({
+      success: true,
+      totalUsers: attendanceSummary.length,
+      attendance: attendanceSummary,
+    });
 
   } catch (err) {
-    if (device) await device.disconnect().catch(() => {});
-    return new Response(
-      JSON.stringify({ success: false, message: err.message }),
-      { status: 500 }
+    console.error(err);
+
+    return Response.json(
+      {
+        success: false,
+        message: err.message,
+      },
+      {
+        status: 500,
+      }
     );
+
+  } finally {
+    await device.disconnect().catch(() => { });
   }
 }

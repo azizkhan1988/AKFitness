@@ -1,74 +1,226 @@
 import Zkteco from "zkteco-js";
 import { google } from "googleapis";
 
-// Clear userId & totalAttendance in Google Sheet
-async function clearSheetData(userId) {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    },
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
+// Month Names
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
-  const sheets = google.sheets({ version: "v4", auth });
-  const spreadsheetId = "1UvC5d_PJjNdClaDWiOa96O4IO2xGRFQCd72xtK-a2X0";
-  const range = "Sheet1!A2:T";
+// ================================
+// Check Due Month
+// ================================
 
-  const response = await sheets.spreadsheets.values.get({ spreadsheetId, range });
-  const rows = response.data.values || [];
+function getDueMonth(joiningDate) {
+  if (!joiningDate) return null;
 
-  const rowIndex = rows.findIndex(row => row[0] === String(userId));
-  if (rowIndex === -1) return;
+  const joining = new Date(joiningDate);
+  if (isNaN(joining.getTime())) return null;
 
-  while (rows[rowIndex].length < 20) rows[rowIndex].push("");
-  rows[rowIndex][18] = ""; // Clear S column (userId)
-  rows[rowIndex][19] = ""; // Clear T column (totalAttendance)
+  const today = new Date();
 
-  const updateRange = `Sheet1!A${rowIndex + 2}:T${rowIndex + 2}`;
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: updateRange,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values: [rows[rowIndex]] },
-  });
-}
+  const joiningDay = joining.getDate();
 
-export async function POST(req) {
-  try {
-    const { userId, joiningDate } = await req.json();
-    if (!userId || !joiningDate) return new Response(null, { status: 204 });
+  // First due date = next month, joining day + 1
+  let dueDate = new Date(
+    joining.getFullYear(),
+    joining.getMonth() + 1,
+    joiningDay + 1
+  );
 
-    // Determine if fee is due based on joining date
-    const joining = new Date(joiningDate);
-    const today = new Date();
-    const feeDue = today.getDate() >= joining.getDate();
+  // Abhi pehli due date nahi ayi
+  if (today < dueDate) {
+    return null;
+  }
 
-    if (!feeDue) {
-      // Not due yet, nothing to do
-      return new Response(JSON.stringify({ message: "Fee not due yet" }), { status: 200 });
+  // Current billing cycle
+  while (true) {
+    const nextDue = new Date(
+      dueDate.getFullYear(),
+      dueDate.getMonth() + 1,
+      joiningDay + 1
+    );
+
+    if (today < nextDue) {
+      break;
     }
 
-    // Fee is due, auto-delete
-    const device = new Zkteco(process.env.ZKTECO_IP, 4370, 10000, 4000);
+    dueDate = nextDue;
+  }
+
+  const monthToCheck =
+    dueDate.getMonth() === 0
+      ? 11
+      : dueDate.getMonth() - 1;
+  // 👇 Debug
+  // console.log({
+  //   joiningDate,
+  //   today: today.toDateString(),
+  //   dueDate: dueDate.toDateString(),
+  //   dueMonth: MONTHS[monthToCheck],
+  // });
+  return MONTHS[monthToCheck];
+}
+
+
+
+
+// ================================
+// Clear userId & Attendance
+// ================================
+function clearSheetData(rows, rowIndex) {
+  while (rows[rowIndex].length < 20) {
+    rows[rowIndex].push("");
+  }
+
+  rows[rowIndex][18] = "";
+  rows[rowIndex][19] = "";
+}
+
+export async function POST() {
+  const device = new Zkteco(
+    process.env.ZKTECO_IP,
+    4370,
+    10000,
+    4000
+  );
+
+  try {
     await device.createSocket();
 
     const usersRes = await device.getUsers();
-    const users = usersRes.data || [];
-    const deviceUser = users.find(u => u.userId === String(userId));
+    const users = Array.isArray(usersRes?.data)
+      ? usersRes.data
+      : Array.isArray(usersRes)
+        ? usersRes
+        : [];
 
-    if (deviceUser) {
-      await device.deleteUser(deviceUser.uid);
-      await new Promise(res => setTimeout(res, 300)); // small delay to ensure deletion
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: [
+        "https://www.googleapis.com/auth/spreadsheets",
+      ],
+    });
+
+    const sheets = google.sheets({
+      version: "v4",
+      auth,
+    });
+
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+
+    // Header + Data
+    const response =
+      await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "Sheet1!A1:T",
+      });
+
+    const values = response.data.values || [];
+
+    if (values.length < 2) {
+      return Response.json({
+        success: true,
+        message: "No Data",
+      });
     }
 
-    await clearSheetData(userId);
-    await device.disconnect();
+    const headers = values[0].map(h => (h || "").trim());
+    const rows = values.slice(1);
 
-    return new Response(JSON.stringify({ message: "User auto-deleted due to fee due" }), { status: 200 });
+    let deleted = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+
+      const row = rows[i];
+
+      const joiningDate = row[3];
+      const userId = row[18];
+
+      if (!joiningDate || !userId) continue;
+
+      // Find current due month
+      const dueMonth = getDueMonth(joiningDate);
+
+      if (!dueMonth) continue;
+
+      const monthIndex = headers.indexOf(dueMonth);
+
+      if (monthIndex === -1) continue;
+
+      const feeValue = (row[monthIndex] || "").trim();
+
+      // Fee Paid
+      if (feeValue !== "") {
+        continue;
+      }
+
+      // Find user in machine
+      const deviceUser = users.find(
+        u => String(u.userId) === String(userId)
+      );
+
+      if (!deviceUser) continue;
+
+      try {
+        await device.deleteUser(deviceUser.uid);
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        clearSheetData(rows, i);
+        deleted++;
+
+      } catch (err) {
+        console.log(`Failed to delete ${userId}:`, err.message);
+      }
+
+      console.log(
+        `Deleted User ${userId} - Due Month ${dueMonth}`
+      );
+    }
+
+    if (deleted > 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Sheet1!A2:T${rows.length + 1}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: rows,
+        },
+      });
+    }
+
+    return Response.json({
+      success: true,
+      deleted,
+      message: "Due members processed successfully.",
+    });
 
   } catch (err) {
-    console.error("Auto-delete error:", err);
-    return new Response(JSON.stringify({ message: "Error processing auto-delete" }), { status: 500 });
+    console.error(err);
+    return Response.json(
+      {
+        success: false,
+        message: err.message,
+      },
+      {
+        status: 500,
+      }
+    );
+  } finally {
+    await device.disconnect().catch(() => { });
   }
 }
+
