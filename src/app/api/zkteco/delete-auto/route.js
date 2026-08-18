@@ -18,62 +18,45 @@ const MONTHS = [
 ];
 
 // ================================
-// Check Due Month
+// Check Due Info (dueDate + dueMonth)
 // ================================
-
-function getDueMonth(joiningDate) {
+function getDueInfo(joiningDate) {
   if (!joiningDate) return null;
 
   const joining = new Date(joiningDate);
-  if (isNaN(joining.getTime())) return null;
-
   const today = new Date();
 
-  const joiningDay = joining.getDate();
+  if (isNaN(joining.getTime())) return null;
 
-  // First due date = next month, joining day + 1
   let dueDate = new Date(
     joining.getFullYear(),
     joining.getMonth() + 1,
-    joiningDay + 1
+    joining.getDate()
   );
 
-  // Abhi pehli due date nahi ayi
+  // Due date abhi nahi aayi
   if (today < dueDate) {
     return null;
   }
 
-  // Current billing cycle
+  // Current due cycle find karo
   while (true) {
     const nextDue = new Date(
       dueDate.getFullYear(),
       dueDate.getMonth() + 1,
-      joiningDay + 1
+      joining.getDate()
     );
 
-    if (today < nextDue) {
-      break;
-    }
+    if (today < nextDue) break;
 
     dueDate = nextDue;
   }
 
-  const monthToCheck =
-    dueDate.getMonth() === 0
-      ? 11
-      : dueDate.getMonth() - 1;
-  // 👇 Debug
-  // console.log({
-  //   joiningDate,
-  //   today: today.toDateString(),
-  //   dueDate: dueDate.toDateString(),
-  //   dueMonth: MONTHS[monthToCheck],
-  // });
-  return MONTHS[monthToCheck];
+  return {
+    dueDate,
+    dueMonth: MONTHS[dueDate.getMonth()],
+  };
 }
-
-
-
 
 // ================================
 // Clear userId & Attendance
@@ -96,7 +79,7 @@ export async function POST() {
   );
 
   try {
-    await device.createSocket();
+   await device.createSocket();
 
     const usersRes = await device.getUsers();
     const users = Array.isArray(usersRes?.data)
@@ -142,22 +125,26 @@ export async function POST() {
     const rows = values.slice(1);
 
     let deleted = 0;
+    const dueUsers = [];
 
     for (let i = 0; i < rows.length; i++) {
 
       const row = rows[i];
 
+      const id = row[0] || "";
+      const name = row[1] || "";
       const joiningDate = row[3];
       const userId = row[18];
+      const totalAttendance = row[19];
 
-      if (!joiningDate || !userId) continue;
+      if (!joiningDate || !userId || !totalAttendance) continue;
 
       // Find current due month
-      const dueMonth = getDueMonth(joiningDate);
+      const dueInfo = getDueInfo(joiningDate);
 
-      if (!dueMonth) continue;
+      if (!dueInfo) continue;
 
-      const monthIndex = headers.indexOf(dueMonth);
+      const monthIndex = headers.indexOf(dueInfo.dueMonth);
 
       if (monthIndex === -1) continue;
 
@@ -173,7 +160,7 @@ export async function POST() {
         u => String(u.userId) === String(userId)
       );
 
-      if (!deviceUser) continue;
+     if (!deviceUser) continue;
 
       try {
         await device.deleteUser(deviceUser.uid);
@@ -186,10 +173,22 @@ export async function POST() {
         console.log(`Failed to delete ${userId}:`, err.message);
       }
 
+      dueUsers.push({
+        ID: id,
+        Name: name,
+        UserID: userId,
+        TotalAttendance: totalAttendance,
+        JoiningDate: joiningDate,
+        DueDate: dueInfo.dueDate.toLocaleDateString("en-GB"),
+        DueMonth: dueInfo.dueMonth,
+      });
+
       console.log(
-        `Deleted User ${userId} - Due Month ${dueMonth}`
+        `Due User ${userId} - Due Month ${dueInfo.dueMonth}`
       );
     }
+
+    console.table(dueUsers);
 
     if (deleted > 0) {
       await sheets.spreadsheets.values.update({
@@ -205,6 +204,8 @@ export async function POST() {
     return Response.json({
       success: true,
       deleted,
+      totalDueUsers: dueUsers.length,
+      dueUsers,
       message: "Due members processed successfully.",
     });
 
@@ -220,7 +221,6 @@ export async function POST() {
       }
     );
   } finally {
-    await device.disconnect().catch(() => { });
+    // await device.disconnect().catch(() => { });
   }
 }
-
